@@ -24,7 +24,7 @@ jobs:
       - name: Apply Raster Remix Patch
         run: |
           cd dxvk-remix
-          git apply ../raster_remix_core_changes.patch || echo "Patch already applied or failed but continuing..."
+          git apply ../raster_remix_core_changes.patch
 
       - name: Setup Build Environment
         run: |
