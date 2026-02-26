@@ -287,21 +287,76 @@ index 37534ce6e..06e23256b 100644
    endif
  endif # dxvk_is_ninja
  
+diff --git a/public/include/remix/remix_c.h b/public/include/remix/remix_c.h
+index ae7e70eeb..223a23091 100644
+--- a/public/include/remix/remix_c.h
++++ b/public/include/remix/remix_c.h
+@@ -844,14 +844,14 @@ extern "C" {
+       return REMIXAPI_ERROR_CODE_GET_PROC_ADDRESS_FAILURE;
+     }
+ 
+-    remixapi_InitializeLibraryInfo info = { 0 };
++    remixapi_InitializeLibraryInfo info = {};
+     {
+       info.sType = REMIXAPI_STRUCT_TYPE_INITIALIZE_LIBRARY_INFO;
+       info.version = REMIXAPI_VERSION_MAKE(REMIXAPI_VERSION_MAJOR,
+                                            REMIXAPI_VERSION_MINOR,
+                                            REMIXAPI_VERSION_PATCH);
+     }
+-    remixapi_Interface remixInterface = { 0 };
++    remixapi_Interface remixInterface = {};
+ 
+     remixapi_ErrorCode status = pfn_InitializeLibrary(&info, &remixInterface);
+     if (status != REMIXAPI_ERROR_CODE_SUCCESS) {
+@@ -880,7 +880,7 @@ extern "C" {
+       FreeLibrary(remixDll);
+     }
+ 
+-    remixapi_Interface nullInterface = { 0 };
++    remixapi_Interface nullInterface = {};
+     *remixInterface = nullInterface;
+     return status;
+   }
+diff --git a/src/d3d9/d3d9_adapter.cpp b/src/d3d9/d3d9_adapter.cpp
+index fc4fefc19..9f4ed9679 100644
+--- a/src/d3d9/d3d9_adapter.cpp
++++ b/src/d3d9/d3d9_adapter.cpp
+@@ -538,9 +538,6 @@ namespace dxvk {
+     // Max Stream Stride
+     pCaps->MaxStreamStride           = 508; // bytes
+ 
+-    const uint32_t majorVersion = options.shaderModel;
+-    const uint32_t minorVersion = options.shaderModel != 1 ? 0 : 4;
+-    
+     // NV-DXVK start: allow customising versions of pixel and vertex shaders individually so people can activate fixed function geometry while maintaining pixel shader support.
+     const uint32_t psMajorVersion = options.psShaderModel;
+     const uint32_t psMinorVersion = options.psShaderModel != 1 ? 0 : 4;
 diff --git a/src/d3d9/d3d9_common_texture.cpp b/src/d3d9/d3d9_common_texture.cpp
-index b94c3d0a6..3932b36aa 100644
+index b94c3d0a6..662b0f82c 100644
 --- a/src/d3d9/d3d9_common_texture.cpp
 +++ b/src/d3d9/d3d9_common_texture.cpp
-@@ -672,7 +672,7 @@ namespace dxvk {
+@@ -11,6 +11,10 @@
+ #include <iostream>
+ #include <sstream>
+ #include "../dxvk/imgui/dxvk_imgui.h"
++#include "../dxvk/dxvk_scoped_annotation.h"
++
++// RASTER REMIX: kEmptyHash was in removed rtx_constants.h
++static constexpr XXH64_hash_t kEmptyHash = 0;
+ 
+ #include <charconv>
+ 
+@@ -672,7 +676,7 @@ namespace dxvk {
        return;
  
      const bool useObsoleteHashMethod = NeedsUpload(subresource) &&
 -      RtxOptions::useObsoleteHashOnTextureUpload();
-+// [STUBBED BY GEMINI]       RtxOptions::useObsoleteHashOnTextureUpload();
++      false; // RASTER REMIX: RtxOptions::useObsoleteHashOnTextureUpload() removed
  
      // Generate hash from CPU buffer
      XXH64_hash_t imageHash;
 diff --git a/src/d3d9/d3d9_device.cpp b/src/d3d9/d3d9_device.cpp
-index ab889269f..0c4cb35cb 100644
+index ab889269f..146f2b0cf 100644
 --- a/src/d3d9/d3d9_device.cpp
 +++ b/src/d3d9/d3d9_device.cpp
 @@ -42,9 +42,6 @@
@@ -314,39 +369,89 @@ index ab889269f..0c4cb35cb 100644
  
  #include "d3d9_initializer.h"
  
-@@ -85,7 +82,7 @@ namespace dxvk {
+@@ -52,12 +49,14 @@
+ #include <cfloat>
+ #include <thread>
+ #include <future>
+-#include <xutility>
+ #include "../dxvk/dxvk_scoped_annotation.h"
+ #ifdef MSC_VER
+ #pragma fenv_access (on)
+ #endif
+ 
++// RASTER REMIX: kEmptyHash was in removed rtx_constants.h
++static constexpr XXH64_hash_t kEmptyHash = 0;
++
+ namespace dxvk {
+   static const bool s_explicitFlush = (env::getEnvVar("DXVK_EXPLICIT_FLUSH") == "1");
+ 
+@@ -85,7 +84,7 @@ namespace dxvk {
  // NV-DXVK end
      , m_multithread    ( BehaviorFlags & D3DCREATE_MULTITHREADED )
      , m_isSWVP         ( (BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING) ? true : false )
 -    , m_csThread       ( dxvkDevice, dxvkDevice->createRtxContext() )
-+// [STUBBED BY GEMINI]     , m_csThread       ( dxvkDevice, dxvkDevice->createRtxContext() )
++    , m_csThread       ( dxvkDevice, dxvkDevice->createContext() ) // RASTER REMIX: was createRtxContext()
      , m_csChunk        ( AllocCsChunk() )
      , m_submissionFence (new sync::Fence())
  // NV-DXVK start: unbound light indices
-@@ -7271,10 +7268,10 @@ namespace dxvk {
-           if (const auto tex = GetCommonTexture(m_state.textures[stageIdx])) {
-             XXH64_hash_t texHash = tex->GetImage()->getHash();
-             if (texHash != kEmptyHash) {
--              if (isLastStage && numActiveStages > 1 && RtxOptions::ignoreLastTextureStage()) {
-+// [STUBBED BY GEMINI]               if (isLastStage && numActiveStages > 1 && RtxOptions::ignoreLastTextureStage()) {
-                 return true;
-               }
--              if (lookupHash(RtxOptions::ignoreTextures(), texHash) || lookupHash(RtxOptions::lightmapTextures(), texHash)) {
-+// [STUBBED BY GEMINI]               if (lookupHash(RtxOptions::ignoreTextures(), texHash) || lookupHash(RtxOptions::lightmapTextures(), texHash)) {
-                 return true;
-               }
-             }
-@@ -7283,7 +7280,7 @@ namespace dxvk {
-           return false;
-         };
+@@ -6363,7 +6362,7 @@ namespace dxvk {
  
+   void D3D9DeviceEx::BindSampler(DWORD Sampler) {
+     ScopedCpuProfileZone();
+-    auto& state = m_state.samplerStates[Sampler];
++    [[maybe_unused]] auto& state = m_state.samplerStates[Sampler];
+ 
+     const D3D9SamplerKey key = CreateSamplerKey(Sampler);
+ 
+@@ -7265,44 +7264,16 @@ namespace dxvk {
+       // so a corresponding texture stage needs to be skipped in the draw call.
+       // This involves modifying D3D9FFShaderKeyFS, by which DXVK chooses a pixel shader for a draw call.
+       // And because of that draw call re-usage, the checks are done here, and not in d3d9_rtx.
++      // RASTER REMIX: filterActiveTextureStage simplified — no RT texture filtering needed
+       auto filterActiveTextureStage = [this, &key, &lastActiveStageIdx, &numActiveStages]
+                                       (uint32_t stageIdx, bool isLastStage) {
+-        auto shouldOmitTextureAtStage = [this, &numActiveStages](uint32_t stageIdx, bool isLastStage) {
+-          if (const auto tex = GetCommonTexture(m_state.textures[stageIdx])) {
+-            XXH64_hash_t texHash = tex->GetImage()->getHash();
+-            if (texHash != kEmptyHash) {
+-              if (isLastStage && numActiveStages > 1 && RtxOptions::ignoreLastTextureStage()) {
+-                return true;
+-              }
+-              if (lookupHash(RtxOptions::ignoreTextures(), texHash) || lookupHash(RtxOptions::lightmapTextures(), texHash)) {
+-                return true;
+-              }
+-            }
+-          }
+-
+-          return false;
+-        };
+-
 -        if (RtxOptions::enableRaytracing()) {
-+// [STUBBED BY GEMINI]         if (RtxOptions::enableRaytracing()) {
-           if (shouldOmitTextureAtStage(stageIdx, isLastStage)) {
-             D3D9FFShaderStage& stage = key.Stages[stageIdx];
-             // make default
+-          if (shouldOmitTextureAtStage(stageIdx, isLastStage)) {
+-            D3D9FFShaderStage& stage = key.Stages[stageIdx];
+-            // make default
+-            memset(&stage, 0, sizeof(D3D9FFShaderStage));
+-            stage.Contents.ColorOp = D3DTOP_DISABLE;
+-            stage.Contents.AlphaOp = D3DTOP_DISABLE;
+-            stage.Contents.allowActiveStagesBeyondDisabledStage = true;
+-            return false;
+-          }
+-        }
+-
+         lastActiveStageIdx = stageIdx;
+         numActiveStages++;
+-
+         return true;
+       };
+       // NV-DXVK end
+ 
+-      uint32_t textureID = 0;
++      [[maybe_unused]] uint32_t textureID = 0;
+       uint32_t idx;
+       for (idx = 0; idx < caps::TextureStageCount; idx++) {
+         auto& stage = key.Stages[idx].Contents;
 diff --git a/src/d3d9/d3d9_device.h b/src/d3d9/d3d9_device.h
-index 1e672e9af..2218ab9fe 100644
+index 1e672e9af..9795e61f0 100644
 --- a/src/d3d9/d3d9_device.h
 +++ b/src/d3d9/d3d9_device.h
 @@ -2,7 +2,6 @@
@@ -357,7 +462,15 @@ index 1e672e9af..2218ab9fe 100644
  
  #include "d3d9_include.h"
  #include "d3d9_cursor.h"
-@@ -46,7 +45,7 @@ namespace dxvk {
+@@ -38,6 +37,7 @@ namespace dxvk {
+ 
+   class D3D9InterfaceEx;
+   class D3D9SwapChainEx;
++  class D3D9SwapchainExternal;
+   class D3D9CommonTexture;
+   class D3D9CommonBuffer;
+   class D3D9CommonShader;
+@@ -46,7 +46,7 @@ namespace dxvk {
    class D3D9Query;
    class D3D9StateBlock;
    class D3D9FormatHelper;
@@ -366,11 +479,21 @@ index 1e672e9af..2218ab9fe 100644
  
    enum class D3D9DeviceFlag : uint32_t {
      DirtyFramebuffer,
+@@ -96,7 +96,8 @@ namespace dxvk {
+   class D3D9DeviceEx final : public ComObjectClamp<IDirect3DDevice9Ex> {
+     constexpr static uint32_t DefaultFrameLatency = 3;
+     // NV-DXVK start: Cap Max Frame Latency to maximum supported Remix frames in flight.
+-    constexpr static uint32_t MaxFrameLatency     = kMaxFramesInFlight;
++    // RASTER REMIX: kMaxFramesInFlight was in removed rtx_types.h, inlined as 4
++    constexpr static uint32_t MaxFrameLatency     = 4;
+     // NV-DXVK end
+ 
+     constexpr static uint32_t MinFlushIntervalUs = 750;
 diff --git a/src/d3d9/d3d9_fixed_function.cpp b/src/d3d9/d3d9_fixed_function.cpp
-index 3205de0c9..6797e8295 100644
+index 3205de0c9..39c7b0081 100644
 --- a/src/d3d9/d3d9_fixed_function.cpp
 +++ b/src/d3d9/d3d9_fixed_function.cpp
-@@ -7,8 +7,6 @@
+@@ -7,13 +7,31 @@
  #include "../dxvk/dxvk_hash.h"
  #include "../dxvk/dxvk_spec_const.h"
  
@@ -379,6 +502,62 @@ index 3205de0c9..6797e8295 100644
  
  #include "../spirv/spirv_module.h"
  
+ #include <cfloat>
+ 
++// RASTER REMIX: Stubs for removed RTX types used by terrain baking shader generation
++namespace ReplacementMaterialTextureCategory {
++  enum Enum : uint32_t {
++    AlbedoOpacity = 0,
++    SecondaryRaw = 1,
++    SecondaryScaled = 2,
++    SecondaryOctahedralEncoded = 3
++  };
++}
++
++namespace TerrainBaker {
++  namespace Material {
++    // Always returns false in raster mode — disables terrain baking shader injection
++    static inline bool replacementSupportInPS_fixedFunction() { return false; }
++  }
++}
++
++static constexpr uint32_t kTerrainBakerSecondaryTextureStage = 7;
++// END stubs
++
+ namespace dxvk {
+ 
+   D3D9FixedFunctionOptions::D3D9FixedFunctionOptions(const D3D9Options* options) {
+@@ -204,7 +222,7 @@ namespace dxvk {
+ 
+   uint32_t SetupRenderStateBlock(SpirvModule& spvModule, uint32_t count) {
+ // NV-DXVK start
+-    const uint32_t uintType = spvModule.defIntType(32, false);
++    [[maybe_unused]] const uint32_t uintType = spvModule.defIntType(32, false);
+     const uint32_t floatType = spvModule.defFloatType(32);
+     const uint32_t vec3Type = spvModule.defVectorType(floatType, 3);
+ // NV-DXVK end
+@@ -1717,7 +1735,7 @@ namespace dxvk {
+     uint32_t floatType = spvModule.defFloatType(32);
+     uint32_t uint32Type = spvModule.defIntType(32, 0);
+     uint32_t vec4Type = spvModule.defVectorType(floatType, 4);
+-    uint32_t vec2Type = spvModule.defVectorType(floatType, 2);
++    [[maybe_unused]] uint32_t vec2Type = spvModule.defVectorType(floatType, 2);
+ 
+     // Initialize spec constant for texture category
+     uint32_t textureCategory = spvModule.specConst32(uint32Type, 0);
+diff --git a/src/d3d9/d3d9_main.cpp b/src/d3d9/d3d9_main.cpp
+index 252995455..a7f51629b 100644
+--- a/src/d3d9/d3d9_main.cpp
++++ b/src/d3d9/d3d9_main.cpp
+@@ -160,7 +160,6 @@ extern "C" {
+ }
+ 
+ void dummy() {
+-  // need to reference a function so it's exported from d3d9.dll
+-  remixapi_InitializeLibrary(nullptr, nullptr);
++  // [RASTER REMIX] remixapi removed — implementation only in bridge
+ }
+ // NV-DXVK end
 diff --git a/src/d3d9/d3d9_rtx.cpp b/src/d3d9/d3d9_rtx.cpp
 index ef7302d1d..8743361d7 100644
 --- a/src/d3d9/d3d9_rtx.cpp
@@ -682,6 +861,289 @@ index ef7302d1d..8743361d7 100644
 +// [STUBBED BY GEMINI]     m_parent->EmitCs([targetImage](DxvkContext* ctx) { static_cast<RtxContext*>(ctx)->onPresent(targetImage); });
    }
  }
+diff --git a/src/d3d9/d3d9_rtx.h b/src/d3d9/d3d9_rtx.h
+index cba1250b4..0513b3df1 100644
+--- a/src/d3d9/d3d9_rtx.h
++++ b/src/d3d9/d3d9_rtx.h
+@@ -21,29 +21,21 @@ namespace dxvk {
+   namespace PrepareDrawFlag {
+     enum {
+       Ignore                      = 0,
+-      CommitToRayTracing          = 1 << 0, // Process the current state as a part of ray tracing
+-      ApplyDrawState              = 1 << 1, // Submit draw state to dxvk-cs, so it can be used to issue original or non-original draw calls (e.g. terrain, sky)
+-      OriginalDrawCall            = 1 << 2, // Issue the original draw call
++      CommitToRayTracing          = 1 << 0,
++      ApplyDrawState              = 1 << 1,
++      OriginalDrawCall            = 1 << 2,
+       PreserveDrawCallAndItsState = ApplyDrawState | OriginalDrawCall,
+     };
+   }
+   using PrepareDrawFlags = uint32_t;
+ 
+-  //This class handles all of the RTX operations that are required from the D3D9 side.
++  // RASTER REMIX: D3D9Rtx stubbed — all RT methods are no-ops, raster passthrough only
+   struct D3D9Rtx {
+-    friend class ImGUI; // <-- we want to modify these values directly.
++    friend class ImGUI;
+ 
+-    D3D9Rtx(D3D9DeviceEx* d3d9Device, bool enableDrawCallConversion = true);
++    D3D9Rtx(D3D9DeviceEx* d3d9Device, bool enableDrawCallConversion = true)
++      : m_parent(d3d9Device), m_enableDrawCallConversion(enableDrawCallConversion) {}
+ 
+-    RTX_OPTION("rtx", bool, orthographicIsUI, true, "When enabled, draw calls that are orthographic will be considered as UI.");
+-    RTX_OPTION("rtx", bool, allowCubemaps, false, "When enabled, cubemaps from the game are processed through Remix, but they may not render correctly.");
+-    RTX_OPTION("rtx", bool, useVertexCapture, true, "When enabled, injects code into the original vertex shader to capture final shaded vertex positions.  Is useful for games using simple vertex shaders, that still also set the fixed function transform matrices.");
+-    RTX_OPTION("rtx", bool, useVertexCapturedNormals, true, "When enabled, vertex normals are read from the input assembler and used in raytracing.  This doesn't always work as normals can be in any coordinate space, but can help sometimes.");
+-    RTX_OPTION("rtx", bool, useWorldMatricesForShaders, true, "When enabled, Remix will utilize the world matrices being passed from the game via D3D9 fixed function API, even when running with shaders.  Sometimes games pass these matrices and they are useful, however for some games they are very unreliable, and should be filtered out.  If you're seeing precision related issues with shader vertex capture, try disabling this setting.");
+-    RTX_OPTION("rtx", bool, enableIndexBufferMemoization, true, "CPU performance optimization, should generally be enabled.  Will reduce main thread time by caching processIndexBuffer operations and reusing when possible, this will come at the expense of some CPU RAM.");
+-    RTX_OPTION("rtx", uint32_t, numGeometryProcessingThreads, 2, "The desired number of CPU threads to dedicate to geometry processing  Will be limited by the number of CPU cores.  There may be some advantage to lowering this number in games which are fairly simple and use a low number of draw calls per frame.  The default was determined by looking at a game with around 2000 draw calls per frame, and with a reasonably high average triangle count per draw.");
+-
+-    // Copy of the parameters issued to D3D9 on DrawXXX
+     struct DrawContext {
+       D3DPRIMITIVETYPE PrimitiveType;
+       INT              BaseVertexIndex;
+@@ -55,221 +47,34 @@ namespace dxvk {
+     };
+     static_assert(sizeof(DrawContext) == 28, "Please, recheck initializer usages if this changes.");
+ 
+-    /**
+-      * \brief: Initialize the D3D9 RTX interface
+-      */
+-    void Initialize();
+-
+-    /**
+-      * \brief: Signal that an occlusion query has started for the current device
+-      */
+-    void BeginOcclusionQuery() {
+-      ++m_activeOcclusionQueries;
+-    }
+-
+-    /**
+-      * \brief: Signal that an occlusion query has ended for the current device
+-      */
+-    void EndOcclusionQuery() {
+-      --m_activeOcclusionQueries;
+-      assert(m_activeOcclusionQueries >= 0);
+-    }
+-
+-    /**
+-      * \brief: Signal that a parameter needs to be updated for RTX
+-      *
+-      * \param [in] flag: parameter that requires updating
+-      */
+-    void SetDirty(D3D9RtxFlag flag) {
+-      m_flags.set(flag);
+-    }
+-
+-    /**
+-      * \brief: Signal that a transform has updated
+-      *
+-      * \param [in] idx: index of transform
+-      */
+-    void SetTransformDirty(const uint32_t transformIdx) {
+-      if (transformIdx > GetTransformIndex(D3DTS_WORLD)) {
+-        m_maxBone = std::max(m_maxBone, transformIdx - GetTransformIndex(D3DTS_WORLD));
+-      }
+-    }
+-
+-    /**
+-      * \brief: This function is responsible for preparing the geometry for rendering in Direct3D 9.
+-      *
+-      * \param [in] indexed: A boolean value indicating whether or not the geometry to be rendered is indexed.
+-      * \param [in] state : An object of type Direct3DState9 that contains the current state of the Direct3D pipeline.
+-      * \param [in] context : An object of type Draw that contains the context for the draw call.
+-      *
+-      * Returns false if this drawcall should be removed from further processing, returns true otherwise.
+-      */
+-    PrepareDrawFlags PrepareDrawGeometryForRT(const bool indexed, const DrawContext& context);
+-
+-    /**
+-      * \brief: This function is responsible for preparing the geometry for rendering in Direct3D 9 
+-      *         when the vertex and index data is packed into a single buffer: ||VERTICES|INDICES||
+-      * 
+-      * \param [in] indexed: A boolean value indicating whether or not the geometry to be rendered is indexed.
+-      * \param [in] buffer : An object of type D3D9BufferSlice that contains the packed vertex and index data.
+-      * \param [in] indexFormat : The format of the indices in the buffer.
+-      * \param [in] indexOffset : The offset of the index data in bytes
+-      * \param [in] indexSize : The size of the index data in bytes.
+-      * \param [in] vertexSize : The size of the vertex data in bytes.
+-      * \param [in] vertexStride : The stride of the vertex data in bytes.
+-      * \param [in] drawContext : An object of type Draw that contains the context for the draw call.
+-      *
+-      * Returns false if this drawcall should be removed from further processing, returns true otherwise.
+-      */
+-    PrepareDrawFlags PrepareDrawUPGeometryForRT(const bool indexed,
+-                                                const D3D9BufferSlice& buffer,
+-                                                const D3DFORMAT indexFormat,
+-                                                const uint32_t indexSize,
+-                                                const uint32_t indexOffset,
+-                                                const uint32_t vertexSize,
+-                                                const uint32_t vertexStride,
+-                                                const DrawContext& context);
+-
+-    /**
+-      * \brief: Sends the pending drawcall geometry/state for raytracing, if nothing pending, does nothing.
+-      *
+-      * \param [in] drawContext : An object of type Draw that contains the context for the draw call.
+-      */
+-    void CommitGeometryToRT(const DrawContext& drawContext);
+-
+-    /**
+-      * \brief: Signal that a swapchain has been resized or reconfigured.
+-      * 
+-      * \param [in] presentationParameters: A reference to the D3D present params.
+-      */
+-    void ResetSwapChain(const D3DPRESENT_PARAMETERS& presentationParameters);
++    void Initialize() {}
++    void BeginOcclusionQuery() { ++m_activeOcclusionQueries; }
++    void EndOcclusionQuery() { --m_activeOcclusionQueries; }
++    void SetDirty(D3D9RtxFlag) {}
++    void SetTransformDirty(const uint32_t) {}
+ 
+-    /**
+-      * \brief: Signal that we've reached the end of the frame.
+-      */
+-    void EndFrame(const Rc<DxvkImage>& targetImage, bool callInjectRtx = true);
+-
+-    /**
+-      * \brief: Signal that we're about to present the image.
+-      */
+-    void OnPresent(const Rc<DxvkImage>& targetImage);
+-
+-    /**
+-      * \brief: Increments the Reflex frame ID. Should be called after presentation and only after every Reflex related marker
+-      * call for the current frame (this typically means other threads running in parallel will need to cache this value from the
+-      * frame they were dispatched on).
+-      */
+-    void IncrementReflexFrameId() {
+-      ++m_reflexFrameId;
++    PrepareDrawFlags PrepareDrawGeometryForRT(const bool, const DrawContext&) {
++      return PrepareDrawFlag::PreserveDrawCallAndItsState;
+     }
+ 
+-    /**
+-      * \brief: Gets the Reflex frame ID for the current frame on the main thread. This is incremented after each present.
+-      * Only intended for use with Reflex, other methods for getting a frame ID exist which may make more sense for other systems.
+-      */
+-    uint64_t GetReflexFrameId() const {
+-      return m_reflexFrameId;
++    PrepareDrawFlags PrepareDrawUPGeometryForRT(const bool, const D3D9BufferSlice&,
++                                                const D3DFORMAT, const uint32_t,
++                                                const uint32_t, const uint32_t,
++                                                const uint32_t, const DrawContext&) {
++      return PrepareDrawFlag::PreserveDrawCallAndItsState;
+     }
+ 
+-  private: 
+-    inline static const uint32_t kMaxConcurrentDraws = 6 * 1024; // some games issuing >3000 draw calls per frame...  account for some consumer thread lag with x2
+-    using GeometryProcessor = WorkerThreadPool<kMaxConcurrentDraws>;
+-    const std::unique_ptr<GeometryProcessor> m_pGeometryWorkers;
+-    AtomicQueue<DrawCallState, kMaxConcurrentDraws> m_drawCallStateQueue;
++    void CommitGeometryToRT(const DrawContext&) {}
++    void ResetSwapChain(const D3DPRESENT_PARAMETERS&) {}
++    void EndFrame(const Rc<DxvkImage>&, bool = true) {}
++    void OnPresent(const Rc<DxvkImage>&) {}
++    void IncrementReflexFrameId() { ++m_reflexFrameId; }
++    uint64_t GetReflexFrameId() const { return m_reflexFrameId; }
+ 
+-    DrawCallState m_activeDrawCallState;
+-
+-    RtxStagingDataAlloc m_rtStagingData;
++  private:
+     D3D9DeviceEx* m_parent;
+-
+-    std::optional<D3DPRESENT_PARAMETERS> m_activePresentParams;
+-
+-    D3D9RtxFlags m_flags = 0xFFFFffff;
+-
+-    uint32_t m_drawCallID = 0;
+-    // Note: A frame identifier the the main thread holds on to passed down into thread invocations such that
+-    // Reflex markers have a consistent ID despite executing in parallel (as typical methods of getting a frame ID
+-    // in DXVK depend on say when the submit thread's present happens which is unpredictable).
+-    uint64_t m_reflexFrameId = 0;
+-
+-    std::vector<Matrix4> m_stagedBones;
+-    uint32_t m_stagedBonesCount = 0;
+-    uint32_t m_maxBone = 0;
+-
+     const bool m_enableDrawCallConversion;
+-    bool m_rtxInjectTriggered = false;
+-    bool m_forceGeometryCopy = false;
+-    DWORD m_texcoordIndex = 0;
+-
++    uint64_t m_reflexFrameId = 0;
+     int m_activeOcclusionQueries = 0;
+-
+-    Rc<DxvkBuffer> m_vsVertexCaptureData;
+-
+-    fast_unordered_cache<Rc<DxvkSampler>> m_samplerCache;
+-
+-    // NOTE: to avoid calculating matrix inverse,
+-    //       m_seenCameraPositions doesn't contain the actual positions,
+-    //       but only relative values, see USE_TRUE_CAMERA_POSITION_FOR_COMPARISON
+-    std::vector<Vector3> m_seenCameraPositions;
+-    std::vector<Vector3> m_seenCameraPositionsPrev;
+-
+-    struct IndexContext {
+-      VkIndexType indexType = VK_INDEX_TYPE_NONE_KHR;
+-      D3D9CommonBuffer* ibo = nullptr;
+-      DxvkBufferSliceHandle indexBuffer;
+-    };
+-
+-    struct VertexContext {
+-      uint32_t stride = 0;
+-      uint32_t offset = 0;
+-      DxvkBufferSlice buffer;
+-      DxvkBufferSliceHandle mappedSlice;
+-      D3D9CommonBuffer* pVBO = nullptr;
+-      bool canUseBuffer;
+-    };
+-
+-    static bool isPrimitiveSupported(const D3DPRIMITIVETYPE PrimitiveType) {
+-      return (PrimitiveType == D3DPT_TRIANGLELIST || PrimitiveType == D3DPT_TRIANGLEFAN || PrimitiveType == D3DPT_TRIANGLESTRIP);
+-    }
+-
+-    const Direct3DState9& d3d9State() const;
+-
+-    template<typename T>
+-    static void copyIndices(const uint32_t indexCount, T*& pIndicesDst, T* pIndices, uint32_t& minIndex, uint32_t& maxIndex);
+-
+-    template<typename T>
+-    DxvkBufferSlice processIndexBuffer(const uint32_t indexCount, const uint32_t startIndex, const IndexContext& indexCtx, uint32_t& minIndex, uint32_t& maxIndex);
+-
+-    void prepareVertexCapture(const int vertexIndexOffset);
+-
+-    void processVertices(const VertexContext vertexContext[caps::MaxStreams], int vertexIndexOffset, RasterGeometry& geoData);
+-
+-    bool processRenderState();
+-
+-    template<bool FixedFunction>
+-    bool processTextures();
+-
+-    PrepareDrawFlags internalPrepareDraw(const IndexContext& indexContext, const VertexContext vertexContext[caps::MaxStreams], const DrawContext& drawContext);
+-
+-    void triggerInjectRTX();
+-
+-
+-    struct DrawCallType {
+-      RtxGeometryStatus status;
+-      bool triggerRtxInjection;
+-    };
+-    DrawCallType makeDrawCallType(const DrawContext& drawContext);
+-
+-    bool checkBoundTextureCategory(const fast_unordered_set& textureCategory) const;
+-
+-    bool isRenderingUI();
+-
+-    Future<SkinningData> processSkinning(const RasterGeometry& geoData);
+-
+-    Future<AxisAlignedBoundingBox> computeAxisAlignedBoundingBox(const RasterGeometry& geoData);
+-
+-    Future<GeometryHashes> computeHash(const RasterGeometry& geoData, const uint32_t maxIndexValue);
+-
+-    void submitActiveDrawCallState();
+   };
+ }
 diff --git a/src/d3d9/d3d9_rtx_geometry.cpp b/src/d3d9/d3d9_rtx_geometry.cpp
 index ed9c74774..c1188d253 100644
 --- a/src/d3d9/d3d9_rtx_geometry.cpp
@@ -753,7 +1215,7 @@ index b59da3b22..cb1f46867 100644
  
  
 diff --git a/src/d3d9/d3d9_swapchain.cpp b/src/d3d9/d3d9_swapchain.cpp
-index a40a343e5..68b641182 100644
+index a40a343e5..35a724151 100644
 --- a/src/d3d9/d3d9_swapchain.cpp
 +++ b/src/d3d9/d3d9_swapchain.cpp
 @@ -29,11 +29,9 @@
@@ -769,63 +1231,112 @@ index a40a343e5..68b641182 100644
  // NV-DXVK end
  
  namespace dxvk {
-@@ -192,7 +190,7 @@ namespace dxvk {
-       if (BridgeMessageChannel::get().init(getWinProcHwnd(), D3D9WindowProc)) {
-         // Send the initial state messages
-         auto& gui = getDxvkDevice()->getCommon()->getImgui();
+@@ -186,17 +184,7 @@ namespace dxvk {
+     g_windowProcMap[window] = std::move(windowData);
+ 
+     // NV-DXVK start: App Controlled FSE
+-    if (windowData.proc == nullptr) {
+-      Logger::info(str::format("No winproc detected, initiating bridge message channel for: ", getWinProcHwnd()));
+-
+-      if (BridgeMessageChannel::get().init(getWinProcHwnd(), D3D9WindowProc)) {
+-        // Send the initial state messages
+-        auto& gui = getDxvkDevice()->getCommon()->getImgui();
 -        gui.switchMenu(RtxOptions::showUI(), true);
-+// [STUBBED BY GEMINI]         gui.switchMenu(RtxOptions::showUI(), true);
-       } else {
-         Logger::err("Unable to init bridge message channel. FSE and input capture may not work!");
-       }
-@@ -330,10 +328,10 @@ namespace dxvk {
+-      } else {
+-        Logger::err("Unable to init bridge message channel. FSE and input capture may not work!");
+-      }
+-    }
++    // RASTER REMIX: BridgeMessageChannel and ImGUI menu init removed (bridge not available)
+     // NV-DXVK end
+   }
+ 
+@@ -330,11 +318,8 @@ namespace dxvk {
      m_presentParams = *pPresentParams;
      m_window = m_presentParams.hDeviceWindow;
  
 -    // NV-DXVK start: DLFG integration
 -    if (RtxOptions::enableVsync() == EnableVsync::WaitingForImplicitSwapchain) {
-+// [STUBBED BY GEMINI]     // NV-DXVK start: DLFG integration
-+// [STUBBED BY GEMINI]     if (RtxOptions::enableVsync() == EnableVsync::WaitingForImplicitSwapchain) {
-       // save the vsync state when the first swapchain is created, to act as the default
+-      // save the vsync state when the first swapchain is created, to act as the default
 -      RtxOptions::enableVsyncState = m_presentParams.PresentationInterval ? EnableVsync::On : EnableVsync::Off;
-+// [STUBBED BY GEMINI]       RtxOptions::enableVsyncState = m_presentParams.PresentationInterval ? EnableVsync::On : EnableVsync::Off;
-     }
+-    }
++// [STUBBED BY GEMINI]     // NV-DXVK start: DLFG integration
++    // RASTER REMIX: VSync handled by basic swapchain, no DLFG
      // NV-DXVK end
  
-@@ -370,9 +368,9 @@ namespace dxvk {
+     UpdatePresentRegion(nullptr, nullptr);
+@@ -370,11 +355,7 @@ namespace dxvk {
  
      m_device->waitForSubmission(&m_presentStatus);
  
 -    // NV-DXVK start: DLFG integration
-+// [STUBBED BY GEMINI]     // NV-DXVK start: DLFG integration
-     if (m_dlfgPresenter != nullptr) {
+-    if (m_dlfgPresenter != nullptr) {
 -      // if the DLFG presenter is running, idle it before waitForIdle, otherwise we'll violate synchronization requirements on VkQueue
-+// [STUBBED BY GEMINI]       // if the DLFG presenter is running, idle it before waitForIdle, otherwise we'll violate synchronization requirements on VkQueue
-       m_dlfgPresenter->synchronize();
-     }
+-      m_dlfgPresenter->synchronize();
+-    }
++    // NV-DXVK start: DLFG integration (RASTER REMIX: DLFG removed)
      // NV-DXVK end
-@@ -400,9 +398,9 @@ namespace dxvk {
+ 
+     m_device->waitForIdle();
+@@ -400,32 +381,13 @@ namespace dxvk {
    }
  
  
 -  // NV-DXVK start: DLFG integration
-+// [STUBBED BY GEMINI]   // NV-DXVK start: DLFG integration
++  // NV-DXVK start: DLFG integration (RASTER REMIX: simplified, no DLFG)
    bool D3D9SwapChainEx::NeedRecreatePresenter() {
 -    if (m_context->isDLFGEnabled()) {
-+// [STUBBED BY GEMINI]     if (m_context->isDLFGEnabled()) {
-       if (m_dlfgPresenter == nullptr) {
-         return true;
-       }
-@@ -458,7 +456,7 @@ namespace dxvk {
+-      if (m_dlfgPresenter == nullptr) {
+-        return true;
+-      }
+-    } else {
+-      if (m_presenter == nullptr) {
+-        return true;
+-      }
+-    }
+-
+-    // one must be null, one must be non-null
+-    assert(m_presenter != nullptr || m_dlfgPresenter != nullptr);
+-    assert(m_presenter == nullptr || m_dlfgPresenter == nullptr);
+-    return false;
++    return m_presenter == nullptr;
+   }
+ 
+   vk::Presenter* D3D9SwapChainEx::GetPresenter() const {
+-    const auto presenter = m_presenter != nullptr ? m_presenter.ptr() : m_dlfgPresenter.ptr();
+-
+-    // Note: The returned presenter must be non-null as one of the two presenters must be non-null at all times,
+-    // and because code will blindly dereference this returned pointer.
+-    assert(presenter != nullptr);
+-
+-    return presenter;
++    return m_presenter.ptr();
+   }
+ 
+   HRESULT STDMETHODCALLTYPE D3D9SwapChainEx::Present(
+@@ -457,21 +419,7 @@ namespace dxvk {
+     if (options->presentInterval >= 0)
        presentInterval = options->presentInterval;
  
-     // NV-DXVK start: Reflex integration
+-    // NV-DXVK start: Reflex integration
 -    switch (RtxOptions::enableVsyncState) {
-+// [STUBBED BY GEMINI]     switch (RtxOptions::enableVsyncState) {
-     case EnableVsync::Off:
-       presentInterval = 0;
-       break;
-@@ -481,7 +479,7 @@ namespace dxvk {
+-    case EnableVsync::Off:
+-      presentInterval = 0;
+-      break;
+-
+-    case EnableVsync::On:
+-      presentInterval = 1;
+-      break;
+-
+-    default:
+-      // this should never happen
+-      assert(!"invalid vsync enable state");
+-      break;
+-    }
++    // NV-DXVK start: Reflex integration (RASTER REMIX: EnableVsync removed, presentInterval set above)
+     // NV-DXVK end
+ 
+     bool vsync  = presentInterval != 0;
+@@ -481,7 +429,7 @@ namespace dxvk {
        window    = hDestWindowOverride;
  
      bool recreate = false;
@@ -834,7 +1345,7 @@ index a40a343e5..68b641182 100644
      recreate    = NeedRecreatePresenter();
      // NV-DXVK end
      recreate   |= window != m_window;    
-@@ -499,7 +497,7 @@ namespace dxvk {
+@@ -499,7 +447,7 @@ namespace dxvk {
      m_dirty    |= vsync != m_vsync;
      m_dirty    |= UpdatePresentRegion(pSourceRect, pDestRect);
      m_dirty    |= recreate;
@@ -843,7 +1354,7 @@ index a40a343e5..68b641182 100644
      m_dirty    |= GetPresenter() != nullptr &&
                    !GetPresenter()->hasSwapChain();
      // NV-DXVK end
-@@ -519,7 +517,7 @@ namespace dxvk {
+@@ -519,7 +467,7 @@ namespace dxvk {
        // 99% of D3D9 games don't handle this properly and
        // just end up crashing (like with alt-tab loss)
        
@@ -852,16 +1363,53 @@ index a40a343e5..68b641182 100644
        if (!GetPresenter()->hasSwapChain())
        // NV-DXVK end
          return D3D_OK;
-@@ -1031,7 +1029,7 @@ namespace dxvk {
+@@ -1031,18 +979,9 @@ namespace dxvk {
        hWindow = m_parent->GetWindow();
  
      if (m_presentParams.hDeviceWindow == hWindow) {
 -      // NV-DXVK start: DLFG integration
-+// [STUBBED BY GEMINI]       // NV-DXVK start: DLFG integration
++      // RASTER REMIX: DLFG removed, just null the presenter
        m_device->synchronizePresenter();
+-
+-      if (m_presenter != nullptr) {
+-        assert(m_dlfgPresenter == nullptr);
+-        m_presenter = nullptr;
+-      }
+-
+-      if (m_dlfgPresenter != nullptr) {
+-        assert(m_presenter == nullptr);
+-        m_dlfgPresenter = nullptr;
+-      }
++      m_presenter = nullptr;
  
-       if (m_presenter != nullptr) {
-@@ -1146,26 +1144,26 @@ namespace dxvk {
+       m_device->waitForSubmission(&m_presentStatus);
+       m_device->waitForIdle();
+@@ -1116,23 +1055,8 @@ namespace dxvk {
+     ScopedCpuProfileZone();
+     m_parent->Flush();
+ 
+-    // NV-DXVK start: Reflex integration
+-    auto& reflex = m_device->getCommon()->metaReflex();
++    // NV-DXVK start: Reflex integration (RASTER REMIX: metaReflex removed, keeping D3D9Rtx frame tracking)
+     auto& d3d9Rtx = m_parent->m_rtx;
+-
+-    // Note: Set the latency ping thread to this thread. This is not a great place to do this as this will be called every present, but this operation
+-    // should be fairly cheap. Additionally this thread can be changed dynamically without issue so not setting it further in advance on the thread
+-    // this function is called on is fine too.
+-    reflex.setLatencyPingThread();
+-
+-    // Note: Simulation ended on the same thread it started on (the main thread). This is put here specifically as when the application
+-    // calls into DXVK's Present this typically means it is done all its work for the frame. The application's own rendering calls are counted
+-    // as simulation here not rendering as they are really just mapped into Remix's geometry and other processing rather than rendering directly,
+-    // instead the actual rendering happens on the DXVK side once the CS thread kicks off Vulkan work. The Reflex markers for rendering
+-    // are tracked on that thread in parallel which may mean some overlap with the simulation region occurs, but this is allowed in Reflex (same
+-    // goes for the present markers).
+-    reflex.endSimulation(d3d9Rtx.GetReflexFrameId());
+-
+     // NV-DXVK end
+ 
+     // Retrieve the image and image view to present
+@@ -1146,26 +1070,26 @@ namespace dxvk {
      for (uint32_t i = 0; i < SyncInterval || i < 1; i++) {
        SynchronizePresent();
  
@@ -892,96 +1440,164 @@ index a40a343e5..68b641182 100644
          info = presenter->info();
          status = presenter->acquireNextImage(sync, imageIndex);
          // NV-DXVK end
-@@ -1260,7 +1258,7 @@ namespace dxvk {
+@@ -1213,21 +1137,9 @@ namespace dxvk {
+ 
+     m_parent->m_flags.set(D3D9DeviceFlag::DirtyFramebuffer);
+ 
+-    // NV-DXVK start: Reflex integration
+-    // Note: Sleeping here in the present function essentially makes it so when the application calls into a D3D Present function it will block for the desired amount of time Reflex indicates.
+-    // This helps accomplish what Reflex desires by delaying the point at which the application does input sampling likely near the start of its simulation on the next frame, thus reducing latency.
+-    reflex.sleep();
+-
+-    // Note: Increment the Reflex Frame ID to prepare for the next frame, now that this Reflex frame has ended.
+-    // Take care to ensure this happens after all other application thread operations call GetReflexFrameId for this frame
+-    // otherwise inconsistent frame IDs may be passed to Reflex.
++    // NV-DXVK start: Reflex integration (RASTER REMIX: Reflex sleep/markers removed)
+     d3d9Rtx.IncrementReflexFrameId();
+ 
+-    // Note: After presentation is typically where the application calling into DXVK will start its next frame simulation wise, so we put the marker here
+-    // on the main thread after the Reflex sleep has completed to encompass this region.
+-    reflex.beginSimulation(d3d9Rtx.GetReflexFrameId());
+-    reflex.latencyPing(d3d9Rtx.GetReflexFrameId());
+-
+     // Tell tracy its the end of the frame
+     FrameMark;
+     // NV-DXVK end
+@@ -1260,23 +1172,13 @@ namespace dxvk {
        m_device->submitCommandList(cCommandList,
          cSync.acquire, cSync.present);
        
 -      // NV-DXVK start: DLFG integration
-+// [STUBBED BY GEMINI]       // NV-DXVK start: DLFG integration
++      // RASTER REMIX: DLFG removed
        if (cHud != nullptr && !cFrameId) {
-         if (m_dlfgPresenter != nullptr) {
-           cHud->update(m_dlfgPresenter->getPresentFrameCount());
-@@ -1270,10 +1268,10 @@ namespace dxvk {
+-        if (m_dlfgPresenter != nullptr) {
+-          cHud->update(m_dlfgPresenter->getPresentFrameCount());
+-        } else {
+-          cHud->update(1);
+-        }
++        cHud->update(1);
        }
-       // NV-DXVK end
- 
+-      // NV-DXVK end
+-
 -      // NV-DXVK start: DLFG integration
 -      // Note: Do not insert Reflex present markers when DLFG is enabled, the DLFG Presenter will insert its own Reflex markers
-+// [STUBBED BY GEMINI]       // NV-DXVK start: DLFG integration
-+// [STUBBED BY GEMINI]       // Note: Do not insert Reflex present markers when DLFG is enabled, the DLFG Presenter will insert its own Reflex markers
-       // (unless the workaround is enabled as this requires that the Present markers stay where they usually are).
+-      // (unless the workaround is enabled as this requires that the Present markers stay where they usually are).
 -      const bool insertReflexPresentMarkers = !m_context->isDLFGEnabled() || (__DLFG_REFLEX_WORKAROUND != 0);
-+// [STUBBED BY GEMINI]       const bool insertReflexPresentMarkers = !m_context->isDLFGEnabled() || (__DLFG_REFLEX_WORKAROUND != 0);
  
++      const bool insertReflexPresentMarkers = true;
        m_device->presentImage(cReflexFrameId, insertReflexPresentMarkers, cAcquiredImageIndex, GetPresenter(), &m_presentStatus);
-       // NV-DXVK end
-@@ -1288,7 +1286,7 @@ namespace dxvk {
+-      // NV-DXVK end
+     });
+ 
+     m_parent->FlushCsChunk();
+@@ -1287,31 +1189,16 @@ namespace dxvk {
+     // Recreate swap chain if the previous present call failed
      VkResult status = m_device->waitForSubmission(&m_presentStatus);
  
-     if (status != VK_SUCCESS
+-    if (status != VK_SUCCESS
 -        // NV-DXVK start: DLFG integration
-+// [STUBBED BY GEMINI]         // NV-DXVK start: DLFG integration
-         && status != VK_EVENT_SET
-         )
+-        && status != VK_EVENT_SET
+-        )
++    if (status != VK_SUCCESS)
        RecreateSwapChain(m_vsync);
-@@ -1299,13 +1297,13 @@ namespace dxvk {
+   }
+ 
+ 
+   void D3D9SwapChainEx::RecreateSwapChain(BOOL Vsync) {
      // Ensure that we can safely destroy the swap chain
-     VkResult status = m_device->waitForSubmission(&m_presentStatus);
- 
+-    VkResult status = m_device->waitForSubmission(&m_presentStatus);
+-
 -    // NV-DXVK start: DLFG integration
-+// [STUBBED BY GEMINI]     // NV-DXVK start: DLFG integration
-     if (m_dlfgPresenter != nullptr) {
+-    if (m_dlfgPresenter != nullptr) {
 -      // synchronize DLFG presenter after flushing the submit queue to ensure m_presentStatus is up to date
-+// [STUBBED BY GEMINI]       // synchronize DLFG presenter after flushing the submit queue to ensure m_presentStatus is up to date
-       m_dlfgPresenter->synchronize();
+-      m_dlfgPresenter->synchronize();
++    m_device->waitForSubmission(&m_presentStatus);
  
-       if (status == VK_EVENT_SET) {
+-      if (status == VK_EVENT_SET) {
 -        // if we got a present queued status from DLFG, it must have updated it now
-+// [STUBBED BY GEMINI]         // if we got a present queued status from DLFG, it must have updated it now
-         assert(m_presentStatus.result != VK_EVENT_SET);
-       }
-     } else {
-@@ -1335,9 +1333,9 @@ namespace dxvk {
+-        assert(m_presentStatus.result != VK_EVENT_SET);
+-      }
+-    } else {
+-      assert(status != VK_EVENT_SET);
+-    }
+-    // NV-DXVK end
++    // RASTER REMIX: DLFG synchronization removed
+ 
+     m_presentStatus.result = VK_SUCCESS;
+ 
+@@ -1335,33 +1222,20 @@ namespace dxvk {
      // Ensure that we can safely destroy the swap chain
      m_device->waitForSubmission(&m_presentStatus);
      
 -    // NV-DXVK start: DLFG integration
-+// [STUBBED BY GEMINI]     // NV-DXVK start: DLFG integration
-     if (m_dlfgPresenter != nullptr) {
+-    if (m_dlfgPresenter != nullptr) {
 -      // need to synchronize DLFG presenter explicitly
-+// [STUBBED BY GEMINI]       // need to synchronize DLFG presenter explicitly
-       // to ensure pacer thread is idle
-       m_dlfgPresenter->synchronize();
-     }
-@@ -1353,9 +1351,9 @@ namespace dxvk {
+-      // to ensure pacer thread is idle
+-      m_dlfgPresenter->synchronize();
+-    }
+-
+     // flush all pending CS work
+-    // this ensures any work that relies on the FG presenter is submitted before we
+-    // synchronize the submission queue + GPU below
+     m_parent->SynchronizeCsThread();
+-    // NV-DXVK end
+ 
+     m_device->waitForIdle();
+ 
      m_presenter = nullptr;
      m_presentStatus.result = VK_SUCCESS;
  
 -    // NV-DXVK start: DLFG integration
-+// [STUBBED BY GEMINI]     // NV-DXVK start: DLFG integration
-     m_dlfgPresenter = nullptr;
+-    m_dlfgPresenter = nullptr;
 -    const bool dlfgEnabled = m_context->isDLFGEnabled();
-+// [STUBBED BY GEMINI]     const bool dlfgEnabled = m_context->isDLFGEnabled();
-     DxvkDeviceQueue presentQueue = dlfgEnabled ? m_device->queues().present : m_device->queues().graphics;
+-    DxvkDeviceQueue presentQueue = dlfgEnabled ? m_device->queues().present : m_device->queues().graphics;
++    // RASTER REMIX: DLFG removed, always use graphics queue
++    DxvkDeviceQueue presentQueue = m_device->queues().graphics;
      
      vk::PresenterDevice presenterDevice;
-@@ -1372,12 +1370,12 @@ namespace dxvk {
+     presenterDevice.queueFamily   = presentQueue.queueFamily;
+     presenterDevice.queue         = presentQueue.queueHandle;
+-    // NV-DXVK end
+     presenterDevice.adapter       = m_device->adapter()->handle();
+     presenterDevice.features.fullScreenExclusive = m_device->extensions().extFullScreenExclusive;
+ 
+@@ -1372,36 +1246,21 @@ namespace dxvk {
      presenterDesc.numPresentModes = PickPresentModes(false, presenterDesc.presentModes);
      presenterDesc.fullScreenExclusive = PickFullscreenMode();
  
 -    // NV-DXVK start: DLFG integration
-+// [STUBBED BY GEMINI]     // NV-DXVK start: DLFG integration
-     if (dlfgEnabled) {
+-    if (dlfgEnabled) {
 -      // DLFG presents 2 times (1 more frame) in each real frame,
-+// [STUBBED BY GEMINI]       // DLFG presents 2 times (1 more frame) in each real frame,
-       // increase image count by 1 to avoid resource waiting.
-       presenterDesc.imageCount++;
+-      // increase image count by 1 to avoid resource waiting.
+-      presenterDesc.imageCount++;
 -      m_dlfgPresenter = new DxvkDLFGPresenter(m_device,
-+// [STUBBED BY GEMINI]       m_dlfgPresenter = new DxvkDLFGPresenter(m_device,
-                                               m_context,
-                                               m_window,
-                                               m_device->adapter()->vki(),
-@@ -1401,7 +1399,7 @@ namespace dxvk {
+-                                              m_context,
+-                                              m_window,
+-                                              m_device->adapter()->vki(),
+-                                              m_device->vkd(),
+-                                              presenterDevice,
+-                                              presenterDesc);
+-    } else {
+-      m_presenter = new vk::Presenter(m_window,
+-        m_device->adapter()->vki(),
+-        m_device->vkd(),
+-        presenterDevice,
+-        presenterDesc);
+-    }
++    m_presenter = new vk::Presenter(m_window,
++      m_device->adapter()->vki(),
++      m_device->vkd(),
++      presenterDevice,
++      presenterDesc);
+ 
+-    GetPresenter()->setFrameRateLimit(m_parent->GetOptions()->maxFrameRate);
+-    GetPresenter()->setFrameRateLimiterRefreshRate(m_displayRefreshRate);
+-    // NV-DXVK end
++    m_presenter->setFrameRateLimit(m_parent->GetOptions()->maxFrameRate);
++    m_presenter->setFrameRateLimiterRefreshRate(m_displayRefreshRate);
+ 
+     CreateRenderTargetViews();
+   }
  
  
    void D3D9SwapChainEx::CreateRenderTargetViews() {
@@ -990,7 +1606,7 @@ index a40a343e5..68b641182 100644
      vk::PresenterInfo info = GetPresenter()->info();
      // NV-DXVK end
      
-@@ -1434,7 +1432,7 @@ namespace dxvk {
+@@ -1434,7 +1293,7 @@ namespace dxvk {
      viewInfo.numLayers    = 1;
  
      for (uint32_t i = 0; i < info.imageCount; i++) {
@@ -999,7 +1615,7 @@ index a40a343e5..68b641182 100644
        VkImage imageHandle = GetPresenter()->getImage(i).image;
        // NV-DXVK end
  
-@@ -1635,7 +1633,7 @@ namespace dxvk {
+@@ -1635,7 +1494,7 @@ namespace dxvk {
            double                  RefreshRate) {
      m_displayRefreshRate = RefreshRate;
  
@@ -1008,20 +1624,47 @@ index a40a343e5..68b641182 100644
      if (GetPresenter() != nullptr)
        GetPresenter()->setFrameRateLimiterRefreshRate(RefreshRate);
    }
-@@ -1882,7 +1880,7 @@ namespace dxvk {
+@@ -1881,13 +1740,13 @@ namespace dxvk {
+ 
  
    VkFullScreenExclusiveEXT D3D9SwapChainEx::PickFullscreenMode() {
-     // NV-DXVK start: App controlled FSE
+-    // NV-DXVK start: App controlled FSE
 -    if (!RtxOptions::allowFSE() || m_dialog || m_presentParams.Windowed)
-+// [STUBBED BY GEMINI]     if (!RtxOptions::allowFSE() || m_dialog || m_presentParams.Windowed)
++    // NV-DXVK start: App controlled FSE (RASTER REMIX: RtxOptions::allowFSE removed)
++    if (m_dialog || m_presentParams.Windowed)
        return VK_FULL_SCREEN_EXCLUSIVE_DISALLOWED_EXT;
  
      if (env::isRemixBridgeActive()) {
+-      if(m_presentParams.BackBufferWidth == GetSystemMetrics(SM_CXSCREEN) &&
+-         m_presentParams.BackBufferHeight == GetSystemMetrics(SM_CYSCREEN))
++      if(m_presentParams.BackBufferWidth == static_cast<UINT>(GetSystemMetrics(SM_CXSCREEN)) &&
++         m_presentParams.BackBufferHeight == static_cast<UINT>(GetSystemMetrics(SM_CYSCREEN)))
+         return VK_FULL_SCREEN_EXCLUSIVE_APPLICATION_CONTROLLED_EXT;
+       else
+         return VK_FULL_SCREEN_EXCLUSIVE_DISALLOWED_EXT;
 diff --git a/src/d3d9/d3d9_swapchain.h b/src/d3d9/d3d9_swapchain.h
-index d290f1826..d37fc0fe2 100644
+index d290f1826..ae4b4ea09 100644
 --- a/src/d3d9/d3d9_swapchain.h
 +++ b/src/d3d9/d3d9_swapchain.h
-@@ -146,8 +146,8 @@ namespace dxvk {
+@@ -34,6 +34,17 @@
+ 
+ #include "../util/sync/sync_signal.h"
+ 
++// RASTER REMIX: Minimal stub for removed RtxSemaphore
++namespace dxvk {
++  class RtxSemaphore : public RcObject {
++  public:
++    RtxSemaphore() : m_handle(VK_NULL_HANDLE) {}
++    VkSemaphore handle() const { return m_handle; }
++  private:
++    VkSemaphore m_handle;
++  };
++}
++
+ #include <vector>
+ 
+ namespace dxvk {
+@@ -146,8 +157,8 @@ namespace dxvk {
  
      Rc<vk::Presenter>         m_presenter;
  
@@ -1032,7 +1675,7 @@ index d290f1826..d37fc0fe2 100644
      // NV-DXVK end
  
      Rc<hud::Hud>              m_hud;
-@@ -254,7 +254,7 @@ namespace dxvk {
+@@ -254,7 +265,7 @@ namespace dxvk {
  
      std::string GetApiName();
  
@@ -1042,7 +1685,7 @@ index d290f1826..d37fc0fe2 100644
      vk::Presenter* GetPresenter() const;
  
 diff --git a/src/d3d9/d3d9_swapchain_external.cpp b/src/d3d9/d3d9_swapchain_external.cpp
-index e737cc432..bad1bc397 100644
+index e737cc432..5f86cd465 100644
 --- a/src/d3d9/d3d9_swapchain_external.cpp
 +++ b/src/d3d9/d3d9_swapchain_external.cpp
 @@ -25,7 +25,6 @@
@@ -1053,8 +1696,37 @@ index e737cc432..bad1bc397 100644
  #include "../dxvk/dxvk_scoped_annotation.h"
  
  namespace dxvk {
+@@ -35,8 +34,9 @@ namespace dxvk {
+         D3DPRESENT_PARAMETERS* pPresentParams,
+   const D3DDISPLAYMODEEX* pFullscreenDisplayMode)
+     : D3D9SwapChainEx(pDevice, pPresentParams, pFullscreenDisplayMode) {
+-    m_frameEndSemaphore = RtxSemaphore::createBinary(pDevice->GetDXVKDevice().ptr(), "ExternalPresenter::frameEnd");
+-    m_frameResumeSemaphore = RtxSemaphore::createBinary(pDevice->GetDXVKDevice().ptr(), "ExternalPresenter::frameResume");
++    // RASTER REMIX: RtxSemaphore stubs — no binary semaphore creation needed
++    m_frameEndSemaphore = new RtxSemaphore();
++    m_frameResumeSemaphore = new RtxSemaphore();
+   }
+ 
+   HRESULT STDMETHODCALLTYPE D3D9SwapchainExternal::Present(const RECT*, const RECT*, HWND, const RGNDATA*,  DWORD) {
+diff --git a/src/d3d9/meson.build b/src/d3d9/meson.build
+index beb1b8ff6..fae2130e2 100644
+--- a/src/d3d9/meson.build
++++ b/src/d3d9/meson.build
+@@ -83,11 +83,9 @@ d3d9_src = [
+   'd3d9_vertex_declaration.h',
+   'd3d9_volume.cpp',
+   'd3d9_volume.h',
+-  'd3d9_rtx.cpp',
++  # RASTER REMIX: d3d9_rtx.cpp, d3d9_rtx_utils.cpp, d3d9_rtx_geometry.cpp removed (implementations replaced by stubs in d3d9_rtx.h)
+   'd3d9_rtx.h',
+-  'd3d9_rtx_utils.cpp',
+   'd3d9_rtx_utils.h',
+-  'd3d9_rtx_geometry.cpp',
+   'd3d9_swapchain_external.cpp',
+ ]
+ 
 diff --git a/src/dxso/dxso_compiler.cpp b/src/dxso/dxso_compiler.cpp
-index f381826a1..cb5678670 100644
+index f381826a1..074b96878 100644
 --- a/src/dxso/dxso_compiler.cpp
 +++ b/src/dxso/dxso_compiler.cpp
 @@ -10,7 +10,6 @@
@@ -1065,11 +1737,571 @@ index f381826a1..cb5678670 100644
  
  #include <cfloat>
  
+@@ -480,143 +479,9 @@ namespace dxvk {
+   }
+ 
+   // NV-DXVK start: vertex shader data capture implementation
++  // [Raster Remix] Stubbed out — vertex capture is RT-only (SSBO + UBO setup for ray tracing vertex data extraction)
+   void DxsoCompiler::emitVertexCaptureInit() {
+-    const uint32_t uintType = m_module.defIntType(32, false);
+-    const uint32_t floatType = m_module.defFloatType(32);
+-    const uint32_t vec3Type = m_module.defVectorType(floatType, 3);
+-    const uint32_t vec4Type = m_module.defVectorType(floatType, 4);
+-    const uint32_t mat4Type = m_module.defMatrixType(vec4Type, 4);
+-
+-    // Constant Buffer for vertex capture
+-    {
+-      uint32_t members[] = {
+-        mat4Type, // normalTransform
+-        mat4Type, // customWorldToProjection
+-        mat4Type, // invProj
+-        mat4Type, // viewToWorld
+-        mat4Type, // worldToObject
+-        uintType, // baseVertex
+-        floatType,// jitterX
+-        floatType,// jitterY
+-        uintType  // padding
+-      };
+-
+-      // NOTE: enum doesn't include 'padding', so +1 here
+-      static_assert(uint32_t(D3D9RtxVertexCaptureMembers::MemberCount) + 1 == std::size(members), "Member count mismatch with D3D9RtxVertexCaptureData");
+-
+-      const uint32_t structType = m_module.defStructType(std::size(members), members);
+-
+-      m_module.decorateBlock(structType);
+-      m_module.setDebugName(structType, "D3D9RtxVertexCaptureData");
+-
+-      uint32_t memberIdx = 0;
+-      auto SetMemberName = [&](const char* name, uint32_t offset) {
+-        m_module.setDebugMemberName(structType, memberIdx, name);
+-        m_module.memberDecorateOffset(structType, memberIdx, offset);
+-        if (members[memberIdx] == mat4Type) {
+-          m_module.memberDecorateMatrixStride(structType, memberIdx, 16);
+-          m_module.memberDecorate(structType, memberIdx, spv::DecorationRowMajor);
+-        }
+-        memberIdx++;
+-      };
+-
+-      // These names/offsets MUST match your CPU struct exactly
+-      SetMemberName("normalTransform", offsetof(D3D9RtxVertexCaptureData, normalTransform));
+-      SetMemberName("customWorldToProjection", offsetof(D3D9RtxVertexCaptureData, customWorldToProjection));
+-      SetMemberName("invProj", offsetof(D3D9RtxVertexCaptureData, invProj));
+-      SetMemberName("viewToWorld", offsetof(D3D9RtxVertexCaptureData, viewToWorld));
+-      SetMemberName("worldToObject", offsetof(D3D9RtxVertexCaptureData, worldToObject));
+-      SetMemberName("baseVertex", offsetof(D3D9RtxVertexCaptureData, baseVertex));
+-      SetMemberName("jitterX",  offsetof(D3D9RtxVertexCaptureData, jitterX));
+-      SetMemberName("jitterY", offsetof(D3D9RtxVertexCaptureData, jitterY));
+-      SetMemberName("padding", offsetof(D3D9RtxVertexCaptureData, padding));
+-
+-      m_vs.vertexCaptureConstants = m_module.newVar(
+-        m_module.defPointerType(structType, spv::StorageClassUniform),
+-        spv::StorageClassUniform);
+-
+-      m_module.setDebugName(m_vs.vertexCaptureConstants, "vertex_capture_consts");
+-
+-      const uint32_t bindingId = computeResourceSlotId(
+-        DxsoProgramType::VertexShader, DxsoBindingType::ConstantBuffer,
+-        DxsoConstantBuffers::VSVertexCaptureData);
+-
+-      m_module.decorateDescriptorSet(m_vs.vertexCaptureConstants, 0);
+-      m_module.decorateBinding(m_vs.vertexCaptureConstants, bindingId);
+-
+-      DxvkResourceSlot resource;
+-      resource.slot = bindingId;
+-      resource.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+-      resource.view = VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+-      resource.access = VK_ACCESS_UNIFORM_READ_BIT;
+-      m_resourceSlots.push_back(resource);
+-    }
+-
+-    // Bind vertex out buffer
+-    {
+-      // Types
+-      const uint32_t floatType = m_module.defFloatType(32);
+-      const uint32_t uintType = m_module.defIntType(32, false);
+-      const uint32_t vec2Type = m_module.defVectorType(floatType, 2);
+-      const uint32_t vec3Type = m_module.defVectorType(floatType, 3);
+-
+-      // struct CapturedVertex { vec3 pos; vec2 tex0; vec3 nrm0; uint color0; }
+-      const uint32_t capMembers[4] = { vec3Type, vec2Type, vec3Type, uintType };
+-      const uint32_t capturedVertexType = m_module.defStructType(std::size(capMembers), capMembers);
+-
+-      // Member offsets (std430, lean)
+-      m_module.memberDecorateOffset(capturedVertexType, (uint32_t) CapturedVertexMembers::Position, offsetof(CapturedVertex, position));
+-      m_module.memberDecorateOffset(capturedVertexType, (uint32_t) CapturedVertexMembers::Texcoord0, offsetof(CapturedVertex, texcoord0));
+-      m_module.memberDecorateOffset(capturedVertexType, (uint32_t) CapturedVertexMembers::Normal0, offsetof(CapturedVertex, normal0));
+-      m_module.memberDecorateOffset(capturedVertexType, (uint32_t) CapturedVertexMembers::Color0, offsetof(CapturedVertex, color0));
+-
+-      // Runtime array of CapturedVertex with 48B stride
+-      const uint32_t capArrayType = m_module.defRuntimeArrayTypeUnique(capturedVertexType);
+-      m_module.decorateArrayStride(capArrayType, sizeof CapturedVertex);
+-
+-      // SSBO block: layout(std430) CapturedVertex data[];
+-      const uint32_t capBlockType = m_module.defStructTypeUnique(1, &capArrayType);
+-
+-      // Keep using the same decoration style you already have for SSBOs
+-      m_module.memberDecorateOffset(capBlockType, 0, 0);
+-      m_module.decorate(capBlockType, spv::DecorationBufferBlock);
+-
+-      const uint32_t capBlockPtr = m_module.defPointerType(capBlockType, spv::StorageClassUniform);
+-      const uint32_t varId = m_module.newVar(capBlockPtr, spv::StorageClassUniform);
+-      m_module.setDebugName(varId, "vertex_capture_out");
+-
+-      const uint32_t bindingId = getVertexCaptureBufferSlot();
+-      m_module.decorateDescriptorSet(varId, 0);
+-      m_module.decorateBinding(varId, bindingId);
+-      m_module.decorate(varId, spv::DecorationNonReadable);
+-
+-      const uint32_t specConstId = m_module.specConstBool(true);
+-      m_module.decorateSpecId(specConstId, bindingId);
+-      m_module.setDebugName(specConstId, str::format("vertex_capture_out_bound").c_str());
+-
+-      DxsoUav uav {};
+-      uav.varId = varId;
+-      uav.ctrId = 0;
+-      uav.specId = specConstId;
+-      uav.sampledType = DxsoScalarType::Float32;
+-      uav.sampledTypeId = floatType;
+-      // NOTE: we won't use imageTypeId for member stores anymore, but keep it valid
+-      uav.imageTypeId = m_module.defPointerType(capturedVertexType, spv::StorageClassUniform);
+-      uav.structStride = sizeof CapturedVertex;
+-      uav.structAlign = 16;
+-      m_vs.vertexOutBuf = uav;
+-
+-      // Store descriptor info for the shader interface
+-      DxvkResourceSlot resource {};
+-      resource.slot = bindingId;
+-      resource.view = VK_IMAGE_VIEW_TYPE_MAX_ENUM;
+-      resource.access = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+-      resource.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+-      m_resourceSlots.push_back(resource);
+-
+-      // Cache the struct type so we can access members later
+-      m_vs.capturedVertexStructType = capturedVertexType;
+-    }
++    // Intentionally empty: vertex capture resources not needed without RT pipeline
+   }
+   // NV-DXVK end
+ 
+@@ -3133,139 +2998,8 @@ void DxsoCompiler::emitControlFlowGenericLoop(
+       }
+ 
+ // NV-DXVK start: Replacement material texture support for Terrain Baking
+-      auto postprocessColorOutputTextureRead = [&](uint32_t textureValue) -> uint32_t {
+-
+-        // Avoid injecting shader code if the support is disabled at launch
+-        if (!TerrainBaker::Material::replacementSupportInPS_programmableShaders()) {
+-          return textureValue;
+-        }
+-
+-        // Only vec4 2D textures are supported
+-        if (samplerType != SamplerTypeTexture2D || 
+-            result.type.ctype != DxsoScalarType::Float32 || result.type.ccount != 4 ||
+-            depth) {
+-          return textureValue;
+-        }
+-
+-        // Ensure we have a valid sampler
+-        if (m_samplers[kTerrainBakerSecondaryTextureStage].color[SamplerTypeTexture2D].varId == 0) {
+-          // SM < 1.x does not have dcl sampler type.
+-          // Ensure m_samplers[kTerrainBakerSecondaryTextureStage].color[SamplerTypeTexture2D].varId is valid/non-zero
+-          if (m_programInfo.majorVersion() < 2) {
+-            emitDclSampler(kTerrainBakerSecondaryTextureStage, DxsoTextureType::Texture2D);
+-          } else {
+-            // Currently not supported - REMIX-2223 
+-            // ToDo: get a valid sampler. For now, skip injecting secondary PBR texture support for terrain baking for this scenario. 
+-            // We should be doing everything the same as the regular sampling above but the
+-            // varId can still be a 0 for m_programInfo.majorVersion() >= 2
+-            return textureValue;
+-          }
+-        }
+-
+-        // Types
+-        uint32_t floatType = m_module.defFloatType(32);
+-        uint32_t vec4Type = m_module.defVectorType(floatType, 4);
+-
+-        // Function to load albedo opacity from a texture
+-        auto loadAlbedoOpacityFnc = [&]() -> uint32_t {
+-
+-          DxsoSampler samplerAlbedoOpacity = m_samplers.at(kTerrainBakerSecondaryTextureStage);
+-          DxsoSamplerInfo samplerInfoAlbedoOpacity = samplerAlbedoOpacity.color[samplerType];
+-
+-          uint32_t albedoOpacity = this->emitSample(
+-            projDivider != 0,
+-            typeId,
+-            samplerInfoAlbedoOpacity,
+-            texcoordVar,
+-            reference,
+-            fetch4,
+-            imageOperands);
+-
+-          if (switchProjResult) {
+-            uint32_t nonProjAlbedoOpacity = this->emitSample(
+-              0,
+-              typeId,
+-              samplerInfoAlbedoOpacity,
+-              texcoordVar,
+-              reference,
+-              fetch4,
+-              imageOperands);
+-
+-            uint32_t shouldProj = m_module.opBitFieldUExtract(
+-              m_module.defIntType(32, 0), m_ps.projectionSpec,
+-              m_module.consti32(samplerIdx), m_module.consti32(1));
+-
+-            shouldProj = m_module.opIEqual(m_module.defBoolType(), shouldProj, m_module.constu32(1));
+-
+-            albedoOpacity = m_module.opSelect(typeId, shouldProj, albedoOpacity, nonProjAlbedoOpacity);
+-          }
+-
+-          return albedoOpacity;
+-        };
+-
+-        // Functions to store/load a vec4 value to/from register storage
+-
+-        DxsoBaseRegister reg;
+-        reg.id = { DxsoRegisterType::ColorOut, 0 };
+-        DxsoRegisterPointer regPtr = emitGetOperandPtr(reg, nullptr);
+-
+-        auto storeVec4ValueToRegisterFnc = [&](uint32_t vec4value) {
+-          m_module.opStore(regPtr.id, vec4value);
+-        };
+-
+-        auto loadVec4ValueFromRegisterFnc = [&]() -> uint32_t {
+-          return m_module.opLoad(vec4Type, regPtr.id);
+-        };
+-
+-        auto loadTexturePreOffsetFnc = [&]() -> uint32_t {
+-          if (m_programInfo.type() ==  DxsoProgramTypes::PixelShader && m_ps.sharedState != 0) {
+-            // Get the texture Offset for heightmaps.
+-            
+-            // The correct index for baking the terrain to a dynamic texture stage is unclear here - 
+-            // both `ctx.dst.id.num` and `samplerIdx` can both have values greater than caps::TextureStageCount. 
+-            uint32_t texturePreOffsetOffset = m_module.constu32(D3D9SharedPSStages_Count * kTerrainBakerSecondaryTextureStage + D3D9SharedPSStages_TexturePreOffset);
+-            uint32_t texturePreOffsetPtr = m_module.opAccessChain(m_module.defPointerType(floatType, spv::StorageClassUniform),
+-              m_ps.sharedState, 1, &texturePreOffsetOffset);
+-
+-            return m_module.opLoad(floatType, texturePreOffsetPtr);
+-          }
+-          return m_module.constf32(1.0);
+-        };
+-
+-        auto loadTextureScaleFnc = [&]() -> uint32_t {
+-          if (m_programInfo.type() ==  DxsoProgramTypes::PixelShader && m_ps.sharedState != 0) {
+-            // Get the texture scale for heightmaps.
+-            
+-            // The correct index for baking the terrain to a dynamic texture stage is unclear here - 
+-            // both `ctx.dst.id.num` and `samplerIdx` can both have values greater than caps::TextureStageCount. 
+-            uint32_t textureScaleOffset = m_module.constu32(D3D9SharedPSStages_Count * kTerrainBakerSecondaryTextureStage + D3D9SharedPSStages_TextureScale);
+-            uint32_t textureScalePtr = m_module.opAccessChain(m_module.defPointerType(floatType, spv::StorageClassUniform),
+-              m_ps.sharedState, 1, &textureScaleOffset);
+-
+-            return m_module.opLoad(floatType, textureScalePtr);
+-          }
+-          return m_module.constf32(1.0);
+-        };
+-
+-        auto loadTexturePostOffsetFnc = [&]() -> uint32_t {
+-          if (m_programInfo.type() ==  DxsoProgramTypes::PixelShader && m_ps.sharedState != 0) {
+-            // Get the texture Offset for heightmaps.
+-            
+-            // The correct index for baking the terrain to a dynamic texture stage is unclear here - 
+-            // both `ctx.dst.id.num` and `samplerIdx` can both have values greater than caps::TextureStageCount. 
+-            uint32_t texturePostOffsetOffset = m_module.constu32(D3D9SharedPSStages_Count * kTerrainBakerSecondaryTextureStage + D3D9SharedPSStages_TexturePostOffset);
+-            uint32_t texturePostOffsetPtr = m_module.opAccessChain(m_module.defPointerType(floatType, spv::StorageClassUniform),
+-              m_ps.sharedState, 1, &texturePostOffsetOffset);
+-
+-            return m_module.opLoad(floatType, texturePostOffsetPtr);
+-          }
+-          return m_module.constf32(1.0);
+-        };
+-
+-        return postprocessTextureReadForTerrainBaking(m_module, textureValue, texcoordVar.id, getVectorTypeId(texcoordVar.type), loadTexturePreOffsetFnc, loadTextureScaleFnc, loadTexturePostOffsetFnc, loadAlbedoOpacityFnc, storeVec4ValueToRegisterFnc, loadVec4ValueFromRegisterFnc);
+-      };
+-
+-      result.id = postprocessColorOutputTextureRead(result.id);
++      // [Raster Remix] Stubbed out — TerrainBaker is RT-only (replacement material injection for terrain baking)
++      // result.id is passed through unmodified
+ // NV-DXVK end
+ 
+ 
+@@ -3710,259 +3444,14 @@ void DxsoCompiler::emitControlFlowGenericLoop(
+   }
+ 
+   // NV-DXVK start: vertex shader data capture implementation
++  // [Raster Remix] Stubbed out — writes captured vertex members to SSBO (RT-only)
+   void DxsoCompiler::emitVertexCaptureWrite(uint32_t vertexIndex, CapturedVertexMembers memberIdx, uint32_t valueId, uint32_t valueType) {
+-    const uint32_t zero = m_module.constu32(0);
+-
+-    // ptr to data[vertexIndex]
+-    const uint32_t elemPtrType = m_module.defPointerType(m_vs.capturedVertexStructType, spv::StorageClassUniform);
+-    const uint32_t idxs[2] = { zero, vertexIndex };
+-    const uint32_t elemPtr =  m_module.opAccessChain(elemPtrType, m_vs.vertexOutBuf.varId, 2, idxs);
+-
+-    // ptr to data[vertexIndex].memberIdx
+-    const uint32_t memPtrType = m_module.defPointerType(valueType, spv::StorageClassUniform);
+-    const uint32_t memberIdxConst = m_module.constu32((uint32_t)memberIdx);
+-    const uint32_t memPtr = m_module.opAccessChain(memPtrType, elemPtr, 1, &memberIdxConst);
+-
+-    m_module.opStore(memPtr, valueId);
++    // Intentionally empty: vertex capture SSBO writes not needed without RT pipeline
+   }
+ 
++  // [Raster Remix] Stubbed out — captures position/texcoord/normal/color into SSBO for RT vertex extraction
+   void DxsoCompiler::emitVertexCaptureOp() {
+-    // Write oPos to a UAV at vertex ID, vertex capture
+-    DxsoRegisterInfo vertexIdReg;
+-    vertexIdReg.type = { DxsoScalarType::Uint32, 1, 0 };
+-    vertexIdReg.sclass = spv::StorageClassInput;
+-
+-    // Types
+-    const uint32_t uintType = getScalarTypeId(DxsoScalarType::Uint32);
+-    const uint32_t floatType = getScalarTypeId(DxsoScalarType::Float32);
+-    const uint32_t vec3TypeId = getVectorTypeId({ DxsoScalarType::Float32, 3 });
+-    const uint32_t vec4TypeId = getVectorTypeId({ DxsoScalarType::Float32, 4 });
+-    const uint32_t mat4TypeId = m_module.defMatrixType(vec4TypeId, 4);
+-
+-    // Helper: load a member from the vertex-capture UBO
+-    auto LoadConstant = [&](uint32_t type, uint32_t memberIdx) -> uint32_t {
+-      const uint32_t idxConst = m_module.constu32(memberIdx);
+-      const uint32_t ptrType = m_module.defPointerType(type, spv::StorageClassUniform);
+-      const uint32_t ptr = m_module.opAccessChain(ptrType, m_vs.vertexCaptureConstants, 1, &idxConst);
+-      return m_module.opLoad(type, ptr);
+-    };
+-
+-    // Common literal ids
+-    const uint32_t c0 = m_module.constu32(0);
+-    const uint32_t c1 = m_module.constu32(1);
+-    const uint32_t c2 = m_module.constu32(2);
+-    const uint32_t c3 = m_module.constu32(3);
+-    const uint32_t oneF = m_module.constf32(1.0f);
+-
+-    // Literal component selectors for Extract/Shuffle
+-    uint32_t lit0 = 0, lit1 = 1, lit2 = 2, lit3 = 3;
+-    uint32_t lit012[3] = { 0, 1, 2 };
+-
+-    // Useful index arrays for shuffles/constructs
+-    uint32_t idx012[3] = { c0, c1, c2 };
+-
+-    // Builtin vertex index and baseVertex
+-    const uint32_t vertexIdVar = emitNewBuiltinVariable(vertexIdReg, spv::BuiltInVertexIndex, "uVertexId", 0);
+-    const uint32_t uVertexId = m_module.opLoad(uintType, vertexIdVar);
+-    const uint32_t baseVertex = LoadConstant(uintType, (uint32_t) D3D9RtxVertexCaptureMembers::BaseVertex);
+-
+-    // Compute vertex index in the CapturedVertex array
+-    const uint32_t vertexIndex = m_module.opISub(uintType, uVertexId, baseVertex);
+-
+-    // Load matrices we actually use for capture
+-    const uint32_t invProj = LoadConstant(mat4TypeId, (uint32_t) D3D9RtxVertexCaptureMembers::InvProj);
+-    const uint32_t viewToWorld = LoadConstant(mat4TypeId, (uint32_t) D3D9RtxVertexCaptureMembers::ViewToWorld);
+-    const uint32_t worldToObject = LoadConstant(mat4TypeId, (uint32_t) D3D9RtxVertexCaptureMembers::WorldToObject);
+-
+-    // clip space (gl_Position)
+-    const uint32_t clipPos = m_module.opLoad(vec4TypeId, m_vs.oPos.id);
+-
+-    // clip -> view (homogeneous), then early perspective divide
+-    const uint32_t viewH = m_module.opVectorTimesMatrix(vec4TypeId, clipPos, invProj);
+-    const uint32_t wComp = m_module.opCompositeExtract(floatType, viewH, 1, &lit3);
+-    const uint32_t invW = m_module.opFDiv(floatType, oneF, wComp);
+-
+-    const uint32_t view3 = m_module.opVectorShuffle(vec3TypeId, viewH, viewH, 3, lit012);
+-
+-    const uint32_t vx = m_module.opCompositeExtract(floatType, view3, 1, &lit0);
+-    const uint32_t vy = m_module.opCompositeExtract(floatType, view3, 1, &lit1);
+-    const uint32_t vz = m_module.opCompositeExtract(floatType, view3, 1, &lit2);
+-    uint32_t view4Comps[4] = { vx, vy, vz, oneF };
+-    const uint32_t view4 = m_module.opCompositeConstruct(vec4TypeId, 4, view4Comps);
+-
+-    // view -> world (affine)
+-    const uint32_t worldH = m_module.opVectorTimesMatrix(vec4TypeId, view4, viewToWorld);
+-    const uint32_t world3 = m_module.opVectorShuffle(vec3TypeId, worldH, worldH, 3, lit012);
+-
+-    const uint32_t wx = m_module.opCompositeExtract(floatType, world3, 1, &lit0);
+-    const uint32_t wy = m_module.opCompositeExtract(floatType, world3, 1, &lit1);
+-    const uint32_t wz = m_module.opCompositeExtract(floatType, world3, 1, &lit2);
+-    uint32_t world4Comps[4] = { wx, wy, wz, oneF };
+-    const uint32_t world4 = m_module.opCompositeConstruct(vec4TypeId, 4, world4Comps);
+-
+-    // world -> object (affine)
+-    const uint32_t objH = m_module.opVectorTimesMatrix(vec4TypeId, world4, worldToObject);
+-    const uint32_t obj3 = m_module.opVectorShuffle(vec3TypeId, objH, objH, 3, lit012);
+-    const uint32_t ox = m_module.opCompositeExtract(floatType, obj3, 1, &lit0);       
+-    const uint32_t oy = m_module.opCompositeExtract(floatType, obj3, 1, &lit1);       
+-    const uint32_t oz = m_module.opCompositeExtract(floatType, obj3, 1, &lit2);       
+-    uint32_t outComps[4] = { ox, oy, oz, oneF };
+-    const uint32_t worldPosId = m_module.opCompositeConstruct(vec4TypeId, 4, outComps);
+-
+-    emitVertexCaptureWrite(vertexIndex, CapturedVertexMembers::Position, obj3, vec3TypeId);
+-    
+-    // Write texcoord
+-    {
+-      uint32_t tex2 = m_module.constvec2f32(0.0f, 0.0f);
+-      if (m_vs.oTex0.id > 0) {
+-        const uint32_t tex4 = m_module.opLoad(vec4TypeId, m_vs.oTex0.id);
+-        const uint32_t lit01[2] = { 0, 1 };
+-        const uint32_t vec2TypeId = getVectorTypeId({ DxsoScalarType::Float32, 2 });
+-        tex2 = m_module.opVectorShuffle(vec2TypeId, tex4, tex4, 2, lit01);
+-      }
+-      // tex0.xy (vec2) @ member 1
+-      emitVertexCaptureWrite(vertexIndex, CapturedVertexMembers::Texcoord0, tex2, getVectorTypeId({ DxsoScalarType::Float32, 2 }));
+-    }
+-
+-    if (m_vs.oNormal0.id > 0) {
+-      // Load normal matrix from constants
+-      const uint32_t vec3typeId = getVectorTypeId({ DxsoScalarType::Float32, 3 });
+-      const uint32_t mat3typeId = m_module.defMatrixType(vec3typeId, 3);
+-      uint32_t normalTransformId = LoadConstant(mat4TypeId, (uint32_t) (D3D9RtxVertexCaptureMembers::NormalTransform));
+-
+-      // Convert to float3x3
+-      std::array<uint32_t, 4> indices = { 0, 1, 2, 3 };
+-      std::array<uint32_t, 3> mtxIndices;
+-      for (uint32_t i = 0; i < 3; i++) {
+-        mtxIndices[i] = m_module.opCompositeExtract(vec4TypeId, normalTransformId, 1, &i);
+-        mtxIndices[i] = m_module.opVectorShuffle(vec3typeId, mtxIndices[i], mtxIndices[i], 3, indices.data());
+-      }
+-      normalTransformId = m_module.opCompositeConstruct(mat3typeId, mtxIndices.size(), mtxIndices.data());
+-
+-      // Load normals from input assembler into float3
+-      const uint32_t floatTypeId = getScalarTypeId(DxsoScalarType::Float32);
+-      uint32_t normal0 = m_module.opLoad(vec4TypeId, m_vs.oNormal0.id);
+-      {
+-        std::array<uint32_t, 3> normalIndices = {
+-          m_module.opCompositeExtract(floatTypeId, normal0, 1, &indices[0]),
+-          m_module.opCompositeExtract(floatTypeId, normal0, 1, &indices[1]),
+-          m_module.opCompositeExtract(floatTypeId, normal0, 1, &indices[2]),
+-        };
+-        normal0 = m_module.opCompositeConstruct(vec3typeId, normalIndices.size(), normalIndices.data());
+-      }
+-
+-      // Transform the normal
+-      normal0 = m_module.opMatrixTimesVector(vec3typeId, normalTransformId, normal0);
+-
+-      // Expand to vec4
+-      {
+-        std::array<uint32_t, 4> normalIndices = {
+-          m_module.opCompositeExtract(floatTypeId, normal0, 1, &indices[0]),
+-          m_module.opCompositeExtract(floatTypeId, normal0, 1, &indices[1]),
+-          m_module.opCompositeExtract(floatTypeId, normal0, 1, &indices[2]),
+-          m_module.opCompositeExtract(floatTypeId, normal0, 1, &indices[2]),
+-        };
+-        normal0 = m_module.opCompositeConstruct(vec4TypeId, normalIndices.size(), normalIndices.data());
+-      }
+-
+-      // Ensure normal0 is vec3 here
+-      emitVertexCaptureWrite(vertexIndex, CapturedVertexMembers::Normal0, normal0, getVectorTypeId({ DxsoScalarType::Float32, 3 }));
+-    }
+-
+-    // COLOR0 packed to D3D9 ARGB 0xAARRGGBB @ member 3
+-    {
+-      const uint32_t floatTypeId = getScalarTypeId(DxsoScalarType::Float32);
+-      uint32_t colorU32 = m_module.constu32(0xFFFFFFFFu); // default opaque white
+-
+-      if (m_vs.oColor0.id > 0) {
+-        const uint32_t c4 = m_module.opLoad(vec4TypeId, m_vs.oColor0.id);
+-
+-        auto clamp01 = [&](uint32_t f) {
+-          const uint32_t z = m_module.constf32(0.0f);
+-          const uint32_t o = m_module.constf32(1.0f);
+-          return m_module.opFMin(floatTypeId, m_module.opFMax(floatTypeId, f, z), o);
+-        };
+-
+-        uint32_t r = clamp01(m_module.opCompositeExtract(floatTypeId, c4, 1, &lit0));
+-        uint32_t g = clamp01(m_module.opCompositeExtract(floatTypeId, c4, 1, &lit1));
+-        uint32_t b = clamp01(m_module.opCompositeExtract(floatTypeId, c4, 1, &lit2));
+-        uint32_t a = clamp01(m_module.opCompositeExtract(floatTypeId, c4, 1, &lit3));
+-
+-        const uint32_t f255 = m_module.constf32(255.0f);
+-        const uint32_t fHlf = m_module.constf32(0.5f);
+-
+-        auto toU8 = [&](uint32_t f /* float */) -> uint32_t {
+-          // Clamp to [0,1], scale to [0,255], add 0.5 for round-to-nearest, then convert
+-          const uint32_t zero = m_module.constf32(0.0f);
+-          const uint32_t one = m_module.constf32(1.0f);
+-          f = m_module.opFMin(floatTypeId, m_module.opFMax(floatTypeId, f, zero), one);
+-
+-          const uint32_t scaled = m_module.opFAdd(
+-              floatTypeId,
+-              m_module.opFMul(floatTypeId, f, m_module.constf32(255.0f)),
+-              m_module.constf32(0.5f));
+-
+-          return m_module.opConvertFtoU(uintType, scaled);
+-        };
+-
+-        uint32_t r8 = toU8(r);
+-        uint32_t g8 = toU8(g);
+-        uint32_t b8 = toU8(b);
+-        uint32_t a8 = toU8(a);
+-
+-        auto shl = [&](uint32_t v, uint32_t s) { return m_module.opShiftLeftLogical(uintType, v, m_module.constu32(s)); };
+-        auto bor = [&](uint32_t x, uint32_t y) { return m_module.opBitwiseOr(uintType, x, y); };
+-
+-        // ARGB packing: 0xAARRGGBB
+-        colorU32 = bor(bor(shl(a8, 24), shl(r8, 16)), bor(shl(g8, 8), b8));
+-      }
+-
+-      emitVertexCaptureWrite(vertexIndex, CapturedVertexMembers::Color0, colorU32, uintType);
+-    }
+-
+-    // Apply custom vertex transform if it's enabled
+-    {
+-      const uint32_t oldPos = m_module.opLoad(vec4TypeId, m_vs.oPos.id);
+-
+-      // Alternative (projected) position
+-      const uint32_t customWorldToProjRefId =
+-        LoadConstant(mat4TypeId, (uint32_t) D3D9RtxVertexCaptureMembers::CustomWorldToProjection);
+-      const uint32_t projPosId =
+-        m_module.opVectorTimesMatrix(vec4TypeId, worldPosId, customWorldToProjRefId);
+-
+-      // Scalar spec-bool
+-      const uint32_t useCustom = m_module.specConstBool(false);
+-      m_module.setDebugName(useCustom, "custom_vertex_transform_enabled");
+-      m_module.decorateSpecId(useCustom, getSpecId(D3D9SpecConstantId::CustomVertexTransformEnabled));
+-
+-      // Explicit select (result vec4, scalar bool condition)
+-      const uint32_t chosenPos = m_module.opSelect(vec4TypeId, useCustom, projPosId, oldPos);
+-      m_module.opStore(m_vs.oPos.id, chosenPos);
+-    }
+-
+-    {
+-      const uint32_t pos0 = m_module.opLoad(vec4TypeId, m_vs.oPos.id);
+-
+-      // Build jittered position
+-      const uint32_t jitterXId = LoadConstant(floatType, (uint32_t) D3D9RtxVertexCaptureMembers::JitterX);
+-      const uint32_t jitterYId = LoadConstant(floatType, (uint32_t) D3D9RtxVertexCaptureMembers::JitterY);
+-      const uint32_t jArgs[4] = { jitterXId, jitterYId, m_module.constf32(0), m_module.constf32(0) };
+-      const uint32_t jitter = m_module.opCompositeConstruct(vec4TypeId, 4, jArgs);
+-
+-      const uint32_t wIdx = 3;
+-      const uint32_t posW = m_module.opCompositeExtract(floatType, pos0, 1, &wIdx);
+-      const uint32_t jitterScaled = m_module.opVectorTimesScalar(vec4TypeId, jitter, posW);
+-      const uint32_t jittered = m_module.opFAdd(vec4TypeId, pos0, jitterScaled);
+-
+-      // Scalar spec-bool
+-      const uint32_t jitterOn = m_module.specConstBool(false);
+-      m_module.setDebugName(jitterOn, "clip_space_jitter_enabled");
+-      m_module.decorateSpecId(jitterOn, getSpecId(D3D9SpecConstantId::ClipSpaceJitterEnabled));
+-
+-      // Explicit select
+-      const uint32_t finalPos = m_module.opSelect(vec4TypeId, jitterOn, jittered, pos0);
+-      m_module.opStore(m_vs.oPos.id, finalPos);
+-    }
++    // Intentionally empty: vertex capture operations not needed without RT pipeline
+   }
+   // NV-DXVK end
+ 
 diff --git a/src/dxvk/dxvk_adapter.cpp b/src/dxvk/dxvk_adapter.cpp
-index 7db217a65..3dc34e37b 100644
+index 7db217a65..dae504e93 100644
 --- a/src/dxvk/dxvk_adapter.cpp
 +++ b/src/dxvk/dxvk_adapter.cpp
-@@ -30,10 +30,8 @@
+@@ -21,6 +21,7 @@
+ */
+ 
+ #include <cstring>
++#include <iomanip>
+ #include <unordered_set>
+ 
+ #include "dxvk_adapter.h"
+@@ -30,10 +31,9 @@
  #include "../util/util_once.h"
  
  // NV-DXVK start: RTXIO
@@ -1077,10 +2309,11 @@ index 7db217a65..3dc34e37b 100644
  // NV-DXVK end:
  // NV-DXVK start: Remix message box utilities
 -#include "rtx_render/rtx_env.h"
++#include "dxvk_messagebox.h"
  // NV-DXVK end:
  // NV-DXVK start: Provide error code on exception
  #include <remix/remix_c.h>
-@@ -165,7 +163,7 @@ namespace dxvk {
+@@ -165,7 +165,7 @@ namespace dxvk {
      }
      // NV-DXVK end
  
@@ -1089,7 +2322,7 @@ index 7db217a65..3dc34e37b 100644
      // xxxnsubtil: this doesn't actually check for present support, because we don't have a surface here!
      uint32_t presentQueue = findQueueFamily(VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT,
                                              VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT);
-@@ -439,8 +437,8 @@ namespace dxvk {
+@@ -439,8 +439,8 @@ namespace dxvk {
      }
      // NV-DXVK end
  
@@ -1100,7 +2333,7 @@ index 7db217a65..3dc34e37b 100644
      std::array devDlfgExtensions = {
        &devExtensions.khrMaintenance4,
        &devExtensions.extCalibratedTimestamps,
-@@ -694,7 +692,7 @@ namespace dxvk {
+@@ -694,7 +694,7 @@ namespace dxvk {
      }
      // NV-DXVK end
  
@@ -1109,7 +2342,7 @@ index 7db217a65..3dc34e37b 100644
      // Find desired queue families
  
      const DxvkAdapterQueueIndices queueFamilies = findQueueFamilies();
-@@ -1239,7 +1237,7 @@ namespace dxvk {
+@@ -1239,7 +1239,7 @@ namespace dxvk {
        Logger::info(str::format("  Async Compute : ", queues.asyncCompute));
      }
      // NV-DXVK end
@@ -1215,35 +2448,53 @@ index a1ce56117..672500bd2 100644
      VkSemaphore m_additionalWaitSemaphore = nullptr;
      uint64_t m_additionalWaitSemaphoreValue = uint64_t(-1);
      VkSemaphore m_additionalSignalSemaphore = nullptr;
+diff --git a/src/dxvk/dxvk_compute.cpp b/src/dxvk/dxvk_compute.cpp
+index adb67e1e1..9d95b9b27 100644
+--- a/src/dxvk/dxvk_compute.cpp
++++ b/src/dxvk/dxvk_compute.cpp
+@@ -28,6 +28,7 @@
+ #include "dxvk_pipemanager.h"
+ #include "dxvk_spec_const.h"
+ #include "dxvk_state_cache.h"
++#include "dxvk_scoped_annotation.h"
+ 
+ namespace dxvk {
+   
 diff --git a/src/dxvk/dxvk_context.cpp b/src/dxvk/dxvk_context.cpp
-index be56911b3..3f23569aa 100644
+index be56911b3..df2f5f8b3 100644
 --- a/src/dxvk/dxvk_context.cpp
 +++ b/src/dxvk/dxvk_context.cpp
-@@ -55,18 +55,18 @@ namespace dxvk {
+@@ -27,6 +27,7 @@
+ #include "dxvk_context.h"
+ #include "../d3d9/d3d9_state.h"
+ #include "../d3d9/d3d9_spec_constants.h"
++#include "dxvk_scoped_annotation.h"
+ 
+ namespace dxvk {
+   DxvkContext::DxvkContext(const Rc<DxvkDevice>& device)
+@@ -55,18 +56,13 @@ namespace dxvk {
  
    }
  
 -  // NV-DXVK start: DLFG integration
 -  bool DxvkContext::isDLFGEnabled() const {
-+// [STUBBED BY GEMINI]   // NV-DXVK start: DLFG integration
-+// [STUBBED BY GEMINI]   bool DxvkContext::isDLFGEnabled() const {
-     ScopedCpuProfileZone();
+-    ScopedCpuProfileZone();
 -    return m_common->metaNGXContext().supportsDLFG() && DxvkDLFG::enable() && !m_common->metaDLFG().hasDLFGFailed();
-+// [STUBBED BY GEMINI]     return m_common->metaNGXContext().supportsDLFG() && DxvkDLFG::enable() && !m_common->metaDLFG().hasDLFGFailed();
-   }
- 
+-  }
+-
++  // NV-DXVK start: DLFG integration (RASTER REMIX: DLFG removed, returning defaults)
    uint32_t DxvkContext::dlfgInterpolatedFrameCount() const {
 -    return isDLFGEnabled() ? m_common->metaDLFG().getInterpolatedFrameCount() : 0;
-+// [STUBBED BY GEMINI]     return isDLFGEnabled() ? m_common->metaDLFG().getInterpolatedFrameCount() : 0;
++    return 0;
    }
  
    uint32_t DxvkContext::dlfgMaxSupportedInterpolatedFrameCount() const {
 -    return m_common->metaNGXContext().supportsDLFG() ? m_common->metaNGXContext().dlfgMaxInterpolatedFrames() : 0;
-+// [STUBBED BY GEMINI]     return m_common->metaNGXContext().supportsDLFG() ? m_common->metaNGXContext().dlfgMaxInterpolatedFrames() : 0;
++    return 0;
    }
    // NV-DXVK end
  
-@@ -282,17 +282,7 @@ namespace dxvk {
+@@ -282,17 +278,7 @@ namespace dxvk {
    }
  
  
@@ -1262,7 +2513,7 @@ index be56911b3..3f23569aa 100644
    // NV-DXVK end
  
  
-@@ -1746,6 +1736,16 @@ namespace dxvk {
+@@ -1746,6 +1732,16 @@ namespace dxvk {
      uint32_t vertexOffset,
      uint32_t firstInstance) {
      ScopedCpuProfileZone();
@@ -1279,7 +2530,35 @@ index be56911b3..3f23569aa 100644
      if (this->commitGraphicsState<true, false>()) {
          m_cmd->cmdDrawIndexed(
            indexCount, instanceCount,
-@@ -4370,7 +4370,6 @@ namespace dxvk {
+@@ -2898,14 +2894,12 @@ namespace dxvk {
+     uint32_t            value) {
+     ScopedCpuProfileZone();
+     // NV-DXVK start: terrain baking
+-    static_assert(D3D9SpecConstantId::Count <= DxvkLimits::MaxNumSpecConstants);
++    static_assert(static_cast<uint32_t>(D3D9SpecConstantId::Count) <= static_cast<uint32_t>(DxvkLimits::MaxNumSpecConstants));
+     // NV-DXVK end
+     auto& specConst =
+       pipeline == VK_PIPELINE_BIND_POINT_GRAPHICS
+       ? m_state.gp.state.sc.specConstants[index]
+-      : pipeline == VK_PIPELINE_BIND_POINT_COMPUTE
+-        ? m_state.cp.state.sc.specConstants[index]
+-        : m_state.rp.state.sc.specConstants[index];
++      : m_state.cp.state.sc.specConstants[index];
+ 
+     if (specConst != value) {
+       specConst = value;
+@@ -2913,9 +2907,7 @@ namespace dxvk {
+       m_flags.set(
+         pipeline == VK_PIPELINE_BIND_POINT_GRAPHICS
+         ? DxvkContextFlag::GpDirtyPipelineState
+-        : pipeline == VK_PIPELINE_BIND_POINT_COMPUTE
+-          ? DxvkContextFlag::CpDirtyPipelineState
+-          : DxvkContextFlag::RpDirtyPipelineState);
++        : DxvkContextFlag::CpDirtyPipelineState);
+     }
+   }
+ 
+@@ -4370,7 +4362,6 @@ namespace dxvk {
        m_gfxBarriers.recordCommands(m_cmd);
  
        this->unbindGraphicsPipeline();
@@ -1287,7 +2566,7 @@ index be56911b3..3f23569aa 100644
      } else if (!suspend) {
        // We may end a previously suspended render pass
        if (m_flags.test(DxvkContextFlag::GpRenderPassSuspended)) {
-@@ -4563,48 +4562,13 @@ namespace dxvk {
+@@ -4563,48 +4554,13 @@ namespace dxvk {
        return true;
    }
  
@@ -1319,13 +2598,13 @@ index be56911b3..3f23569aa 100644
 -
 -  bool DxvkContext::updateRaytracingPipelineState() {
 -    ScopedCpuProfileZone();
--
--    m_rpActivePipeline = m_state.rp.pipeline->getPipelineHandle();
 +  
+ 
+-    m_rpActivePipeline = m_state.rp.pipeline->getPipelineHandle();
  
 -    if (unlikely(!m_rpActivePipeline))
 -      return false;
- 
+-
 -    m_cmd->cmdBindPipeline(
 -      VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR,
 -      m_rpActivePipeline);
@@ -1339,7 +2618,7 @@ index be56911b3..3f23569aa 100644
  
  
    void DxvkContext::unbindGraphicsPipeline() {
-@@ -4719,18 +4683,7 @@ namespace dxvk {
+@@ -4719,18 +4675,7 @@ namespace dxvk {
    }
  
  
@@ -1359,7 +2638,40 @@ index be56911b3..3f23569aa 100644
  
  
    void DxvkContext::updateGraphicsShaderResources() {
-@@ -5448,22 +5401,13 @@ namespace dxvk {
+@@ -4961,9 +4906,7 @@ namespace dxvk {
+     auto& refMask = 
+       BindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS
+       ? m_state.gp.state.bsBindingMask
+-      : BindPoint == VK_PIPELINE_BIND_POINT_COMPUTE
+-        ? m_state.cp.state.bsBindingMask
+-        : m_state.rp.state.bsBindingMask;
++      : m_state.cp.state.bsBindingMask;
+ 
+     // If some resources are not bound, we may need to
+     // update spec constants and rebind the pipeline
+@@ -4973,9 +4916,7 @@ namespace dxvk {
+       m_flags.set(
+         BindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS
+         ? DxvkContextFlag::GpDirtyPipelineState
+-        : BindPoint == VK_PIPELINE_BIND_POINT_COMPUTE
+-          ? DxvkContextFlag::CpDirtyPipelineState
+-          : DxvkContextFlag::RpDirtyPipelineState);
++        : DxvkContextFlag::CpDirtyPipelineState);
+     }
+   }
+ 
+@@ -5400,9 +5341,7 @@ namespace dxvk {
+     auto layout = 
+       BindPoint == VK_PIPELINE_BIND_POINT_GRAPHICS
+       ? m_state.gp.pipeline->layout()
+-      : BindPoint == VK_PIPELINE_BIND_POINT_COMPUTE
+-        ? m_state.cp.pipeline->layout()
+-        : m_state.rp.pipeline->layout();
++      : m_state.cp.pipeline->layout();
+ 
+     if (!layout)
+       return;
+@@ -5448,32 +5387,6 @@ namespace dxvk {
    }
  
  
@@ -1371,19 +2683,28 @@ index be56911b3..3f23569aa 100644
 -      if (unlikely(!this->updateRaytracingPipeline()))
 -        return false;
 -    }
-+  
- 
-     if (m_flags.any(
-       DxvkContextFlag::RpDirtyResources,
-       DxvkContextFlag::RpDirtyDescriptorBinding))
+-
+-    if (m_flags.any(
+-      DxvkContextFlag::RpDirtyResources,
+-      DxvkContextFlag::RpDirtyDescriptorBinding))
 -      this->updateRaytracingShaderResources();
- 
-     if (m_flags.test(DxvkContextFlag::RpDirtyPipelineState)) {
+-
+-    if (m_flags.test(DxvkContextFlag::RpDirtyPipelineState)) {
 -      if (unlikely(!this->updateRaytracingPipelineState()))
-         return false;
-     }
- 
-@@ -5662,18 +5606,7 @@ namespace dxvk {
+-        return false;
+-    }
+-
+-    if (m_flags.test(DxvkContextFlag::DirtyPushConstants))
+-      this->updatePushConstants<VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR>();
+-
+-    return true;
+-  }
+-
+-
+   template<bool Indexed, bool Indirect>
+   bool DxvkContext::commitGraphicsState() {
+     ScopedCpuProfileZone();
+@@ -5662,37 +5575,7 @@ namespace dxvk {
    }
  
  
@@ -1399,14 +2720,13 @@ index be56911b3..3f23569aa 100644
 -        const DxvkDescriptorSlot binding = layout->binding(i);
 -        requiresBarrier = commitInitBarriers(binding, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR);
 -      }
-+  // NV-DXVK start: Ray tracing init/
-     }
- 
-     if (requiresBarrier)
-@@ -5681,15 +5614,7 @@ namespace dxvk {
-   }
- 
- 
+-    }
+-
+-    if (requiresBarrier)
+-      m_execBarriers.recordCommands(m_cmd);
+-  }
+-
+-
 -  void DxvkContext::commitRaytracingPostBarriers() {
 -    ScopedCpuProfileZone();
 -    auto layout = m_state.rp.pipeline->layout();
@@ -1416,28 +2736,43 @@ index be56911b3..3f23569aa 100644
 -        const DxvkDescriptorSlot binding = layout->binding(i);
 -        commitPostBarriers(binding, VK_PIPELINE_STAGE_RAY_TRACING_SHADER_BIT_KHR);
 -      }
-+  
-     }
-   }
+-    }
+-  }
+-  // NV-DXVK end
++  // RASTER REMIX: commitRaytracingBarriers and commitRaytracingPostBarriers removed
+ 
+ 
+   template<bool Indexed, bool Indirect, bool DoEmit>
+@@ -5944,27 +5827,7 @@ namespace dxvk {
    // NV-DXVK end
-@@ -5945,8 +5870,6 @@ namespace dxvk {
  
    void DxvkContext::traceRays(uint32_t width, uint32_t height, uint32_t depth) {
-     ScopedCpuProfileZone();
+-    ScopedCpuProfileZone();
 -    if (this->commitRaytracingState()) {
 -      this->commitRaytracingInitBarriers();
- 
-       m_queryManager.beginQueries(m_cmd,
-         VK_QUERY_TYPE_PIPELINE_STATISTICS);
-@@ -5961,7 +5884,6 @@ namespace dxvk {
-       m_queryManager.endQueries(m_cmd,
-         VK_QUERY_TYPE_PIPELINE_STATISTICS);
- 
+-
+-      m_queryManager.beginQueries(m_cmd,
+-        VK_QUERY_TYPE_PIPELINE_STATISTICS);
+-
+-      m_cmd->cmdTraceRaysKHR(
+-        &m_state.rp.pipeline->m_raygenShaderBindingTable,
+-        &m_state.rp.pipeline->m_missShaderBindingTable,
+-        &m_state.rp.pipeline->m_hitShaderBindingTable,
+-        &m_state.rp.pipeline->m_callableShaderBindingTable,
+-        width, height, depth);
+-
+-      m_queryManager.endQueries(m_cmd,
+-        VK_QUERY_TYPE_PIPELINE_STATISTICS);
+-
 -      this->commitRaytracingPostBarriers();
-     }
+-    }
+-
+-    m_cmd->addStatCtr(DxvkStatCounter::CmdTraceRaysCalls, 1);
++    // RASTER REMIX: Ray tracing removed
+   }
  
-     m_cmd->addStatCtr(DxvkStatCounter::CmdTraceRaysCalls, 1);
-@@ -6036,16 +5958,7 @@ namespace dxvk {
+ 
+@@ -6036,21 +5899,6 @@ namespace dxvk {
    }
  
  
@@ -1451,10 +2786,14 @@ index be56911b3..3f23569aa 100644
 -      m_rpLookupCache[pipeline->shaders().hash()] = pipeline;
 -      return pipeline;
 -    }
-+  
- 
-     return foundPipeline->second;
-   }
+-
+-    return foundPipeline->second;
+-  }
+-
+-
+   Rc<DxvkFramebuffer> DxvkContext::lookupFramebuffer(
+     const DxvkFramebufferInfo&      framebufferInfo) {
+     ScopedCpuProfileZone();
 diff --git a/src/dxvk/dxvk_context.h b/src/dxvk/dxvk_context.h
 index 9ced32e37..e948603c3 100644
 --- a/src/dxvk/dxvk_context.h
@@ -1554,7 +2893,7 @@ index 9ced32e37..e948603c3 100644
      Rc<DxvkFramebuffer> lookupFramebuffer(
        const DxvkFramebufferInfo&      framebufferInfo);
 diff --git a/src/dxvk/dxvk_context_state.h b/src/dxvk/dxvk_context_state.h
-index 819dd9363..56a55ea9b 100644
+index 819dd9363..2aafcbea1 100644
 --- a/src/dxvk/dxvk_context_state.h
 +++ b/src/dxvk/dxvk_context_state.h
 @@ -8,13 +8,11 @@
@@ -1571,20 +2910,58 @@ index 819dd9363..56a55ea9b 100644
  
  namespace dxvk {
    
+@@ -151,11 +149,7 @@ namespace dxvk {
+     DxvkComputePipeline*          pipeline = nullptr;
+   };
+ 
+-  struct DxvkRaytracingPipelineState {
+-    DxvkRaytracingPipelineShaders shaders;
+-    DxvkComputePipelineStateInfo  state;
+-    DxvkRaytracingPipeline*       pipeline = nullptr;
+-  };
++  // RASTER REMIX: DxvkRaytracingPipelineState removed (RT types not available)
+ 
+   struct DxvkDynamicState {
+     DxvkBlendConstants  blendConstants    = { 0.0f, 0.0f, 0.0f, 0.0f };
+@@ -189,6 +183,6 @@ namespace dxvk {
+     
+     DxvkGraphicsPipelineState gp;
+     DxvkComputePipelineState  cp;
+-    DxvkRaytracingPipelineState rp;
++    // RASTER REMIX: DxvkRaytracingPipelineState rp removed
+   };
+ }
+\ No newline at end of file
 diff --git a/src/dxvk/dxvk_cs.cpp b/src/dxvk/dxvk_cs.cpp
-index 78249b0b7..46b35db01 100644
+index 78249b0b7..326779682 100644
 --- a/src/dxvk/dxvk_cs.cpp
 +++ b/src/dxvk/dxvk_cs.cpp
-@@ -2,7 +2,6 @@
+@@ -2,7 +2,7 @@
  #include "dxvk_scoped_annotation.h"
  
  // NV-DXVK start: notify user and kill process on exception in CS thread to avoid silent hangs
 -#include "rtx_render/rtx_env.h"
++#include "dxvk_messagebox.h"
  // NV-DXVK end
  
  #include "../tracy/TracyC.h"
+diff --git a/src/dxvk/dxvk_descriptor.cpp b/src/dxvk/dxvk_descriptor.cpp
+index 29fe1b876..bead64d1d 100644
+--- a/src/dxvk/dxvk_descriptor.cpp
++++ b/src/dxvk/dxvk_descriptor.cpp
+@@ -85,8 +85,8 @@ namespace dxvk {
+   
+ // NV-DXVK start: use EXT_debug_utils
+   DxvkDescriptorPool::DxvkDescriptorPool(const Rc<vk::InstanceFn>& vki, const Rc<vk::DeviceFn>& vkd)
+-    : m_vkd(vkd)
+-    , m_vki(vki) {
++    : m_vki(vki)
++    , m_vkd(vkd) {
+ // NV-DXVK end
+     const uint32_t maxSets = 8192;
+ 
 diff --git a/src/dxvk/dxvk_device.cpp b/src/dxvk/dxvk_device.cpp
-index c59693cf5..de522b212 100644
+index c59693cf5..8971f16a6 100644
 --- a/src/dxvk/dxvk_device.cpp
 +++ b/src/dxvk/dxvk_device.cpp
 @@ -21,16 +21,7 @@
@@ -1613,27 +2990,23 @@ index c59693cf5..de522b212 100644
      // Get desired queues from the device
  
      m_queues.graphics = getQueue(adapterQueueInfos.graphics.queueFamilyIndex, adapterQueueInfos.graphics.queueIndex);
-@@ -67,13 +58,13 @@ namespace dxvk {
+@@ -67,14 +58,7 @@ namespace dxvk {
        m_queues.present = getQueue(adapterQueueInfos.present->queueFamilyIndex, adapterQueueInfos.present->queueIndex);
      }
  
 -    if (__DLFG_QUEUE_INFO_CHECK(adapterQueueInfos)) {
 -      // Note: When DLFG is active a separate queue is used for out of band rendering/presentation, so it should be marked accordingly.
-+// [STUBBED BY GEMINI]     if (__DLFG_QUEUE_INFO_CHECK(adapterQueueInfos)) {
-+// [STUBBED BY GEMINI]       // Note: When DLFG is active a separate queue is used for out of band rendering/presentation, so it should be marked accordingly.
-       // Additionally, we do not mark the out of band render queue here as apparently it should only be marked when the out of band rendering
+-      // Additionally, we do not mark the out of band render queue here as apparently it should only be marked when the out of band rendering
 -      // is sequential to application work, whereas out DLFG rendering work is overlapped with application rendering work.
 -      // Todo: Should we be calling this even when DLFG is disabled? Probably shouldn't matter since no OOB Presents
 -      // will be used in such a case, but something to consider if Reflex behaves weirdly when DLFG is disabled.
 -      m_objects.metaReflex().markOutOfBandPresentQueue(m_queues.__DLFG_QUEUE.queueHandle);
-+// [STUBBED BY GEMINI]       // is sequential to application work, whereas out DLFG rendering work is overlapped with application rendering work.
-+// [STUBBED BY GEMINI]       // Todo: Should we be calling this even when DLFG is disabled? Probably shouldn't matter since no OOB Presents
-+// [STUBBED BY GEMINI]       // will be used in such a case, but something to consider if Reflex behaves weirdly when DLFG is disabled.
-+// [STUBBED BY GEMINI]       m_objects.metaReflex().markOutOfBandPresentQueue(m_queues.__DLFG_QUEUE.queueHandle);
-     }
+-    }
++// [RASTER REMIX] DLFG queue setup removed
      // NV-DXVK end
  
-@@ -135,7 +126,6 @@ namespace dxvk {
+  #ifdef TRACY_ENABLE
+@@ -135,7 +119,6 @@ namespace dxvk {
      this->waitForIdle();
  
      // NV-DXVK start: RTX initializer
@@ -1641,16 +3014,18 @@ index c59693cf5..de522b212 100644
      // NV-DXVK end
  
  #ifdef TRACY_ENABLE
-@@ -226,8 +216,6 @@ namespace dxvk {
+@@ -226,10 +209,6 @@ namespace dxvk {
      return new DxvkContext(this);
    }
  
 -  Rc<RtxContext> DxvkDevice::createRtxContext() {
 -    return new RtxContext(this);
-   }
+-  }
+-
  
- 
-@@ -353,7 +341,6 @@ namespace dxvk {
+   Rc<DxvkGpuEvent> DxvkDevice::createGpuEvent() {
+     return new DxvkGpuEvent(m_vkd);
+@@ -353,7 +332,6 @@ namespace dxvk {
      m_objects.dummyResources().clearResources(this);
  
      // NV-DXVK start: RTX initializer
@@ -1658,7 +3033,7 @@ index c59693cf5..de522b212 100644
      // NV-DXVK end
    }
  
-@@ -390,7 +377,7 @@ namespace dxvk {
+@@ -390,7 +368,7 @@ namespace dxvk {
  
      // NV-DXVK end
  
@@ -1667,16 +3042,19 @@ index c59693cf5..de522b212 100644
      if (m_presenterInFlight.ptr() != presenter.ptr()) {
        // if we're switching presenters, synchronize the old one to make sure nothing stays in flight
        // to ensure the correctness of reference count for presenter object
-@@ -411,7 +398,7 @@ namespace dxvk {
+@@ -411,10 +389,7 @@ namespace dxvk {
      m_statCounters.addCtr(DxvkStatCounter::QueuePresentCount, 1); // Increase getCurrentFrameId()
    }
  
 -  // NV-DXVK start: DLFG integration
-+// [STUBBED BY GEMINI]   // NV-DXVK start: DLFG integration
-   void DxvkDevice::setupFrameInterpolation(DxvkFrameInterpolationInfo parameters) {
-     m_submissionQueue.setupFrameInterpolation(parameters);
-   }
-@@ -472,8 +459,8 @@ namespace dxvk {
+-  void DxvkDevice::setupFrameInterpolation(DxvkFrameInterpolationInfo parameters) {
+-    m_submissionQueue.setupFrameInterpolation(parameters);
+-  }
++  // NV-DXVK start: DLFG integration (RASTER REMIX: DLFG removed, method stubbed)
+   // NV-DXVK end
+ 
+   void DxvkDevice::submitCommandList(
+@@ -472,8 +447,8 @@ namespace dxvk {
      ScopedCpuProfileZone();
      this->lockSubmission();
      
@@ -1687,35 +3065,85 @@ index c59693cf5..de522b212 100644
      synchronizePresenter();
      // NV-DXVK end
  
-@@ -524,12 +511,10 @@ namespace dxvk {
-     m_sceneManager(device),
-     m_rtResources(device),
-     m_rtInitializer(device),
+@@ -514,6 +489,7 @@ namespace dxvk {
+     return DxvkDeviceQueue { queue, family, index };
+   }
+ 
++// [RASTER REMIX] Simplified DxvkObjects — RT passes removed
+   DxvkObjects::DxvkObjects(DxvkDevice* device)
+     : m_device(device),
+     m_memoryManager(device),
+@@ -521,66 +497,11 @@ namespace dxvk {
+     m_pipelineManager(device, &m_renderPassPool),
+     m_eventPool(device),
+     m_queryPool(device),
+-    m_sceneManager(device),
+-    m_rtResources(device),
+-    m_rtInitializer(device),
 -    m_textureManager { std::make_unique<RtxTextureManager>(device) },
-     m_imgui(device),
+-    m_imgui(device),
      m_dummyResources(device),
-     m_globalVolumetrics(device),
-     m_pathtracerGbuffer(device),
+-    m_globalVolumetrics(device),
+-    m_pathtracerGbuffer(device),
 -    m_rtxdiRayQuery(device),
-     m_restirgiRayQuery(device),
-     m_pathtracerIntegrateDirect(device),
-     m_pathtracerIntegrateIndirect(device),
-@@ -562,12 +547,10 @@ namespace dxvk {
-     m_capturer(new GameCapturer(device, m_sceneManager, m_exporter.get())),
+-    m_restirgiRayQuery(device),
+-    m_pathtracerIntegrateDirect(device),
+-    m_pathtracerIntegrateIndirect(device),
+-    m_demodulate(device),
+-    m_neeCache(device),
+-    m_neuralRadianceCache(device),
+-    m_primaryDirectLightDenoiser(device, DenoiserType::DirectLight),
+-    m_primaryIndirectLightDenoiser(device, DenoiserType::IndirectLight),
+-    m_primaryCombinedLightDenoiser(device, DenoiserType::DirectAndIndirectLight),
+-    m_secondaryCombinedLightDenoiser(device, DenoiserType::Secondaries),
+-    m_ngxContext(device),
+-    m_dlfg(device),
+-    m_referenceDenoiserSecondLobe0(device, DenoiserType::Reference),
+-    m_referenceDenoiserSecondLobe1(device, DenoiserType::Reference),
+-    m_referenceDenoiserSecondLobe2(device, DenoiserType::Reference),
+-    m_dlss(device),
+-    m_rayReconstruction(device),
+-    m_nis(device),
+-    m_taa(device),
+-    m_xess(device),
+-    m_composite(device),
+-    m_debug_view(device),
+-    m_autoExposure(device),
+-    m_toneMapping(device),
+-    m_localToneMapping(device),
+-    m_bloom(device),
+-    m_geometryUtils(device),
+-    m_imageUtils(device),
+-    m_postFx(device),
+-    m_capturer(new GameCapturer(device, m_sceneManager, m_exporter.get())),
++    m_imgui(device),
      m_lastKnownWindowHandle((HWND) 0) { }
  
 -  RtxTextureManager& DxvkObjects::getTextureManager() {
 -    return *m_textureManager;
-+// [STUBBED BY GEMINI]   RtxTextureManager& DxvkObjects::getTextureManager() {
-   }
- 
+-  }
+-
    void DxvkObjects::onDestroy() {
 -    getRtxInitializer().onDestroy();
- 
-     metaGeometryUtils().onDestroy();
-     getSceneManager().onDestroy();
+-
+-    metaGeometryUtils().onDestroy();
+-    getSceneManager().onDestroy();
+-
+-    m_primaryDirectLightDenoiser.get().onDestroy();
+-    m_primaryIndirectLightDenoiser.get().onDestroy();
+-    m_primaryCombinedLightDenoiser.get().onDestroy();
+-    m_secondaryCombinedLightDenoiser.get().onDestroy();
+-    m_referenceDenoiserSecondLobe0.get().onDestroy();
+-    m_referenceDenoiserSecondLobe1.get().onDestroy();
+-    m_referenceDenoiserSecondLobe2.get().onDestroy();
+-    m_rayReconstruction.get().onDestroy();
+-    m_dlss.get().onDestroy();
+-    m_dlfg.get().onDestroy();
++    // [RASTER REMIX] No RT objects to destroy
+   }
+ }
 diff --git a/src/dxvk/dxvk_device.h b/src/dxvk/dxvk_device.h
-index fd22dfda2..b46382152 100644
+index fd22dfda2..34973b4dc 100644
 --- a/src/dxvk/dxvk_device.h
 +++ b/src/dxvk/dxvk_device.h
 @@ -95,8 +95,8 @@ namespace dxvk {
@@ -1724,8 +3152,8 @@ index fd22dfda2..b46382152 100644
  
 -    // NV-DXVK start: DLFG integration
 -    DxvkDeviceQueue present;  // we run DLFG + presents in this queue
-+// [STUBBED BY GEMINI]     // NV-DXVK start: DLFG integration
-+// [STUBBED BY GEMINI]     DxvkDeviceQueue present;  // we run DLFG + presents in this queue
++    // NV-DXVK start: DLFG integration (RASTER REMIX: present queue kept for swapchain presentation)
++    DxvkDeviceQueue present;
      // NV-DXVK end
    };
    
@@ -1737,25 +3165,25 @@ index fd22dfda2..b46382152 100644
  
      /**
       * \brief Creates a GPU event
-@@ -506,7 +505,7 @@ namespace dxvk {
+@@ -506,16 +505,7 @@ namespace dxvk {
  
      void incrementPresentCount();
  
 -    // NV-DXVK start: DLFG integration
-+// [STUBBED BY GEMINI]     // NV-DXVK start: DLFG integration
-     /**
-      * \brief Setup frame interpolation parameters for current frame
-      *
-@@ -515,7 +514,7 @@ namespace dxvk {
-      */
-     void setupFrameInterpolation(
-       DxvkFrameInterpolationInfo parameters);
+-    /**
+-     * \brief Setup frame interpolation parameters for current frame
+-     *
+-     * These are used in the submit queue to trigger frame interpolation
+-     * when the next present call comes in.
+-     */
+-    void setupFrameInterpolation(
+-      DxvkFrameInterpolationInfo parameters);
 -    // NV-DXVK end: DLFG integration
-+// [STUBBED BY GEMINI]     // NV-DXVK end: DLFG integration
++    // [RASTER REMIX] DLFG frame interpolation removed
      
      /**
       * \brief Submits a command list
-@@ -637,7 +636,7 @@ namespace dxvk {
+@@ -637,7 +627,7 @@ namespace dxvk {
        return &m_objects;
      }
  
@@ -1787,10 +3215,10 @@ index de13d1cac..05dd16024 100644
      DxvkExt khrExternalSemaphoreCapabilities = { VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME, DxvkExtMode::Optional };
      // NV-DXVK end
 diff --git a/src/dxvk/dxvk_instance.cpp b/src/dxvk/dxvk_instance.cpp
-index 0c13d02f3..c2e4381a5 100644
+index 0c13d02f3..da4ba98af 100644
 --- a/src/dxvk/dxvk_instance.cpp
 +++ b/src/dxvk/dxvk_instance.cpp
-@@ -25,9 +25,6 @@
+@@ -25,13 +25,11 @@
  #include "dxvk_openvr.h"
  #include "dxvk_openxr.h"
  #include "dxvk_platform_exts.h"
@@ -1799,8 +3227,15 @@ index 0c13d02f3..c2e4381a5 100644
 -#include "rtx_render/rtx_mod_manager.h"
  
  // NV-DXVK start: Integrate Aftermath
- #include "GFSDK_Aftermath_GpuCrashDump.h"
-@@ -46,9 +43,7 @@
+-#include "GFSDK_Aftermath_GpuCrashDump.h"
+-#include "GFSDK_Aftermath_GpuCrashDumpDecoding.h"
++// [RASTER REMIX] Aftermath SDK not available
++// #include "GFSDK_Aftermath_GpuCrashDump.h"
++// #include "GFSDK_Aftermath_GpuCrashDumpDecoding.h"
+ // NV-DXVK end
+ 
+ #include <cstring>
+@@ -46,13 +44,14 @@
  // NV-DXVK end
  
  // NV-DXVK start: RTXIO
@@ -1810,7 +3245,90 @@ index 0c13d02f3..c2e4381a5 100644
  
  // NV-DXVK start: Provide error code on exception
  #include <remix/remix_c.h>
-@@ -225,7 +220,7 @@ namespace dxvk {
+ // NV-DXVK end
++
++// RASTER REMIX: message box utility (was in removed rtx_env.h)
++#include "dxvk_messagebox.h"
+ namespace dxvk {
+   bool filterErrorMessages(const char* message) {
+     // validation errors that we are currently ignoring --- to fix!
+@@ -155,68 +154,19 @@ namespace dxvk {
+   }
+   // NV-DXVK end
+ 
+-  void aftermathCrashCallback(const void* pGpuCrashDump, const uint32_t gpuCrashDumpSize, void* pUserData) {
+-    std::string exeName = env::getExeNameNoSuffix();
+-
+-    auto t = std::time(nullptr);
+-    auto tm = *std::localtime(&t);
+-
+-    std::string path = env::getEnvVar("DXVK_AFTERMATH_DUMP_PATH");
+-
+-    if (!path.empty() && *path.rbegin() != '/') {
+-      path += '/';
+-    }
+-
+-    std::string dumpFilename = str::format(path, exeName, "_", tm.tm_mday, tm.tm_mon, tm.tm_year, "-", tm.tm_hour, tm.tm_min, tm.tm_sec, "_aftermath.nv-gpudmp");
+-
+-    Logger::err(str::format("Aftermath detected a crash, writing dump to: ", dumpFilename));
+-
+-    std::ofstream dumpFile = std::ofstream(str::tows(dumpFilename.c_str()).c_str(), std::ios::binary);
+-    if (dumpFile.is_open()) {
+-      dumpFile.write((char*) pGpuCrashDump, gpuCrashDumpSize);
+-      dumpFile.close();
+-    } else {
+-      Logger::warn(str::format("Aftermath was trying to write a GPU dump, but it failed, proposed filename: ", dumpFilename));
+-    }
+-  }
+-
+-  void aftermathShaderDebugInfoCallback(const void* pShaderDebugInfo, const uint32_t shaderDebugInfoSize, void* pUserData) {
+-    GFSDK_Aftermath_ShaderDebugInfoIdentifier sdiIdentifier;
+-    GFSDK_Aftermath_GetShaderDebugInfoIdentifier(GFSDK_Aftermath_Version_API, pShaderDebugInfo, shaderDebugInfoSize, &sdiIdentifier);
+-
+-    std::string exeName = env::getExeNameNoSuffix();
+-
+-    std::string path = env::getEnvVar("DXVK_AFTERMATH_DUMP_PATH");
+-
+-    if (!path.empty() && *path.rbegin() != '/') {
+-      path += '/';
+-    }
+-
+-    const std::string shaderDumpInfoDir = path + "shaderDebugInfo/";
+-    env::createDirectory(shaderDumpInfoDir);
+-
+-    std::string sdiFilename = str::format(shaderDumpInfoDir, std::uppercase, std::setfill('0'), std::setw(16), std::hex, sdiIdentifier.id[0], "-", sdiIdentifier.id[1], "-0000", ".nvdbg");
+-
+-    std::ofstream sdiFile = std::ofstream(str::tows(sdiFilename.c_str()).c_str(), std::ios::binary);
+-    if (sdiFile.is_open()) {
+-      sdiFile.write((char*) pShaderDebugInfo, shaderDebugInfoSize);
+-      sdiFile.close();
+-    } else {
+-      Logger::warn(str::format("Aftermath requested a shader dump write, but it failed, proposed filename: ", sdiFilename));
+-    }
+-  }
+-
+-  void aftermathMarkerCallback(const void* pMarker, void* pUserData, void** resolvedMarkerData, uint32_t* markerSize) {
+-    *resolvedMarkerData = (void*)pMarker;
+-    *markerSize = strlen((const char*) pMarker);
+-  }
++  // [RASTER REMIX] Aftermath callbacks removed — SDK not available
++#if 0
++  void aftermathCrashCallback(const void* pGpuCrashDump, const uint32_t gpuCrashDumpSize, void* pUserData) {}
++  void aftermathShaderDebugInfoCallback(const void* pShaderDebugInfo, const uint32_t shaderDebugInfoSize, void* pUserData) {}
++  void aftermathMarkerCallback(const void* pMarker, void* pUserData, void** resolvedMarkerData, uint32_t* markerSize) {}
++#endif
+ 
+   DxvkInstance::DxvkInstance() {
+     Logger::info(str::format("Game: ", env::getExeName()));
+     Logger::info(str::format("DXVK_Remix: ", DXVK_VERSION));
+ 
+     // NV-DXVK start: Log System Info Report
+-    RtxSystemInfo::logReport();
++    // [RASTER REMIX] RtxSystemInfo removed
+     // NV-DXVK end 
+ 
+     // NV-DXVK start: Decomposed growing config initialization
+@@ -225,7 +175,7 @@ namespace dxvk {
      // NV-DXVK end 
  
      m_options = DxvkOptions(m_config);
@@ -1819,36 +3337,83 @@ index 0c13d02f3..c2e4381a5 100644
  
      // NV-DXVK start: Wait for debugger functionality
      if (m_config.getOption<bool>("dxvk.waitForDebuggerToAttach", false, "DXVK_WAIT_FOR_DEBUGGER_TO_ATTACH"))
-@@ -234,7 +229,7 @@ namespace dxvk {
+@@ -234,29 +184,8 @@ namespace dxvk {
      // NV-DXVK end 
  
      // NV-DXVK start: Workaround hybrid AMD iGPU+Nvidia dGPU device enumeration issues
 -    if (RtxOptions::disableAMDSwitchableGraphics()) {
-+// [STUBBED BY GEMINI]     if (RtxOptions::disableAMDSwitchableGraphics()) {
-       // Note: The VK_LAYER_AMD_swichable_graphics layer in older AMD drivers is somewhat buggy and seems to filter away all non-AMD devices even if this means leaving
-       // an empty device list for Vulkan despite having a GPU on the machine. In turn this causes a subsequent call to vkEnumeratePhysicalDevices to return VK_INCOMPLETE
-       // for some reason (which previously was considered an error, not that Remix would be able to launch anyways though due to having no devices reported). This was
-@@ -314,7 +309,7 @@ namespace dxvk {
+-      // Note: The VK_LAYER_AMD_swichable_graphics layer in older AMD drivers is somewhat buggy and seems to filter away all non-AMD devices even if this means leaving
+-      // an empty device list for Vulkan despite having a GPU on the machine. In turn this causes a subsequent call to vkEnumeratePhysicalDevices to return VK_INCOMPLETE
+-      // for some reason (which previously was considered an error, not that Remix would be able to launch anyways though due to having no devices reported). This was
+-      // reported many times by users using some sort of AMD iGPU and Nvidia dGPU setup (such as a laptop) combined with older AMD integrated graphics drivers (e.g. around
+-      // early 2020).
+-      //
+-      // Disabling the switchable graphics layer works around this issue, though may in rare cases cause undesirable behavior if one actually wishes to use
+-      // the layer to control which devices are exposed to an application, which is why Remix provides a way to disable this option. Generally though this should do the
+-      // right thing as on systems with Nvidia GPUs Nvidia Optimus itself will already handle selecting an integrated or dedicated GPU for an application, and on systems
+-      // with both an AMD iGPU and dGPU Remix will prefer the dedicated GPU which is the generally desired behavior (unless the user actually wants to run on the iGPU,
+-      // in which case this workaround will need to be disabled).
+-      //
+-      // If this really becomes a problem, a better approach may be to only enable this override if enumerating devices results in 0 devices rather than setting it upfront,
+-      // but other large projects set this upfront unconditionally as well, so for now it's probably fine as doing a retry would require re-creating the instance which is
+-      // not super trivial to do with how Remix's code is set up currently.
+-      //
+-      // For more information, see:
+-      // https://github.com/KhronosGroup/Vulkan-Loader/issues/552
+-      // https://github.com/godotengine/godot/issues/57708
+-      // https://nvidia.custhelp.com/app/answers/detail/a_id/5182/~/unable-to-launch-vulkan-apps%2Fgame-on-notebooks-with-amd-radeon-igpus
+-      env::setEnvVar("DISABLE_LAYER_AMD_SWITCHABLE_GRAPHICS_1", "1");
+-    }
++    // [RASTER REMIX] Always disable AMD switchable graphics layer (was gated by RtxOptions)
++    env::setEnvVar("DISABLE_LAYER_AMD_SWITCHABLE_GRAPHICS_1", "1");
+     // NV-DXVK end 
+ 
+     m_extProviders.push_back(&DxvkPlatformExts::s_instance);
+@@ -293,28 +222,12 @@ namespace dxvk {
+       }
+ 
+       // NV-DXVK start: Integrate Aftermath
+-      if (m_options.enableAftermath && !m_aftermathEnabled) {
+-        GFSDK_Aftermath_Result aftermathResult = GFSDK_Aftermath_EnableGpuCrashDumps(GFSDK_Aftermath_Version_API,
+-                                                                                     GFSDK_Aftermath_GpuCrashDumpWatchedApiFlags_Vulkan,
+-                                                                                     GFSDK_Aftermath_GpuCrashDumpFeatureFlags_DeferDebugInfoCallbacks,
+-                                                                                     &aftermathCrashCallback,
+-                                                                                     &aftermathShaderDebugInfoCallback,
+-                                                                                     nullptr,                   // descriptionCb
+-                                                                                     &aftermathMarkerCallback,  // resolveMarkerCb
+-                                                                                     nullptr                    // pUserData
+-                                                                                     );
+-        if (GFSDK_Aftermath_SUCCEED(aftermathResult)) {
+-          Logger::info("Aftermath enabled");
+-          m_aftermathEnabled = true;
+-        } else {
+-          Logger::warn(str::format("User requested Aftermath enablement, but it failed.  Code: ", aftermathResult));
+-          m_options.enableAftermath = (aftermathResult == GFSDK_Aftermath_Result_FAIL_AlreadyInitialized); // Do not disable if already initialized
+-        }
+-      }
++      // [RASTER REMIX] Aftermath SDK not available
        // NV-DXVK end
      }
  
 -    if (RtxOptions::areValidationLayersEnabled()) {
-+// [STUBBED BY GEMINI]     if (RtxOptions::areValidationLayersEnabled()) {
++    // [RASTER REMIX] Validation layers always enabled (was gated by RtxOptions)
++    {
        // NV-DXVK start: use EXT_debug_utils
        VkDebugUtilsMessengerCreateInfoEXT info = {};
        info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
-@@ -378,8 +373,8 @@ namespace dxvk {
+@@ -378,8 +291,9 @@ namespace dxvk {
    }
  
    VkInstance DxvkInstance::createInstance() {
 -    const auto areValidationLayersEnabled = RtxOptions::areValidationLayersEnabled();
 -    const auto enableValidationLayerExtendedValidation = RtxOptions::enableValidationLayerExtendedValidation();
-+// [STUBBED BY GEMINI]     const auto areValidationLayersEnabled = RtxOptions::areValidationLayersEnabled();
-+// [STUBBED BY GEMINI]     const auto enableValidationLayerExtendedValidation = RtxOptions::enableValidationLayerExtendedValidation();
++    // [RASTER REMIX] Default to false — validation layers can be enabled via env vars just fine
++    const auto areValidationLayersEnabled = false;
++    const auto enableValidationLayerExtendedValidation = false;
  
      // Attempt to enable required Instance Extensions
  
-@@ -421,7 +416,7 @@ namespace dxvk {
+@@ -421,7 +335,7 @@ namespace dxvk {
      for (const auto& provider : m_extProviders)
        extensionsEnabled.merge(provider->getInstanceExtensions());
  
@@ -1857,41 +3422,550 @@ index 0c13d02f3..c2e4381a5 100644
      std::vector<DxvkExt*> dlfgExtList = { {
        &insExtensions.khrExternalMemoryCapabilities,
        &insExtensions.khrExternalSemaphoreCapabilities
-@@ -647,7 +642,7 @@ namespace dxvk {
-       userLayer->getConfig().logOptions("user.conf");
-     }
- 
+@@ -627,63 +541,14 @@ namespace dxvk {
+   // NV-DXVK start: Custom config loading/logging
+   void DxvkInstance::initConfigs() {
+     
+-    // Load configurations
+-    // Note: Loading is done in the following order currently, each step overriding values in the previous
+-    // configuration values when a conflict exist, resulting in the combined "effective" configuration:
+-    // - Configuration defaults in code (Implicit)
+-    // - dxvk.conf ("User Config"), can be multiple when set with envvar
+-    // - Per-application configuration in code ("Built-in Config" from config.cpp)
+-    // - rtx.conf ("RTX User Config"), can be multiple when set with envvar
+-    //   - baseGameModPath/rtx.conf (Mod-specific extension of "RTX User Config")
++    // [RASTER REMIX] Simplified config loading — RtxOptionImpl/RtxOptionManager removed
+     m_config = Config();
+     initConfig<Config::Type_User>();
+     initConfig<Config::Type_App>();
+     initConfig<Config::Type_RtxUser>();
+-    initConfig<Config::Type_RtxMod>();
+-
+-    auto userLayer = RtxOptionImpl::addRtxOptionLayer("user.conf", (uint32_t) RtxOptionLayer::SystemLayerPriority::USER, true, 1.0f, 0.1f);
+-    Logger::info("Set user realtime configs.");
+-    if (userLayer) {
+-      userLayer->getConfig().logOptions("user.conf");
+-    }
+-
 -    RtxOptionManager::initializeRtxOptions();
-+// [STUBBED BY GEMINI]     RtxOptionManager::initializeRtxOptions();
-     for (const auto& [unusedLayerKey, optionLayerPtr] : RtxOptionImpl::getRtxOptionLayerMap()) {
-       RtxOptionManager::addRtxOptionLayer(*optionLayerPtr);
-     }
-@@ -658,7 +653,7 @@ namespace dxvk {
-     // Todo: This being here is kinda not great as this results in the Environment variables being parsed 3 times
-     // which is quite redundant. Unfortunately this logging can't go in Config::getOption as this function is called
-     // twice (again, redundant) resulting in duplicate messages. Ideally this system should be refactored to get all the
+-    for (const auto& [unusedLayerKey, optionLayerPtr] : RtxOptionImpl::getRtxOptionLayerMap()) {
+-      RtxOptionManager::addRtxOptionLayer(*optionLayerPtr);
+-    }
++    // Skip RtxMod — no ModManager available
+ 
+     m_config.logOptions("Effective configuration for DXVK");
+-
+-    // Output environment variable info
+-    // Todo: This being here is kinda not great as this results in the Environment variables being parsed 3 times
+-    // which is quite redundant. Unfortunately this logging can't go in Config::getOption as this function is called
+-    // twice (again, redundant) resulting in duplicate messages. Ideally this system should be refactored to get all the
 -    // relevant environment variable values for the desired RtxOptions in a loop like this, and then use those when
-+// [STUBBED BY GEMINI]     // relevant environment variable values for the desired RtxOptions in a loop like this, and then use those when
-     // setting the options up to avoid redundantly making a ton of syscalls. Luckily this code only happens in loading
-     // so it is not a huge performance overhead, and the value of seeing which environment variables are overriding options
-     // is currently more valuable (since they continue to cause problems when unseen in the log).
+-    // setting the options up to avoid redundantly making a ton of syscalls. Luckily this code only happens in loading
+-    // so it is not a huge performance overhead, and the value of seeing which environment variables are overriding options
+-    // is currently more valuable (since they continue to cause problems when unseen in the log).
+-
+-    bool firstEnvironmentOverride = true;
+-
+-    for (auto&& option : RtxOptionImpl::getGlobalRtxOptionMap()) {
+-      const auto optionName = option.second->getFullName();
+-      const auto envVarName = option.second->environment;
+-
+-      if (envVarName) {
+-        const std::string& envVarValue = env::getEnvVar(envVarName);
+-
+-        if (envVarValue != "") {
+-          // Note: Only print out the section header if there's at least one environment variable override.
+-          if (firstEnvironmentOverride) {
+-            Logger::info("Environment variable option overrides:");
+-
+-            firstEnvironmentOverride = false;
+-          }
+-
+-          Logger::info(str::format("  ", optionName, " overridden by environment variable: ", envVarName, "=", envVarValue));
+-        }
+-      }
+-    }
+   }
+   
+   template<Config::Type type>
+@@ -692,41 +557,13 @@ namespace dxvk {
+     Logger::info(str::format("Init config: ", name));
+     std::string configPath = "";
+     if constexpr (type == Config::Type_RtxMod) {
+-      // Handle games that have native mod support, where the base game looks into another folder for mod, 
+-      // and the new asset path is passed in through the command line
+-      const auto baseGameModPath = ModManager::getBaseGameModPath(
+-        m_config.getOption<std::string>("rtx.baseGameModRegex", "", ""),
+-        m_config.getOption<std::string>("rtx.baseGameModPathRegex", "", ""));
+-
+-      if (baseGameModPath.empty()) {
+-        // Skip RtxMod if not present, as it may just pick up a different rtx.mod path
+-        Logger::info("No base game mod path found. Skipping initialization.");
+-        return;
+-      } else {
+-        Logger::info(str::format("Found base game mod path: ", baseGameModPath));
+-        configPath = baseGameModPath;
+-      }
++      // [RASTER REMIX] ModManager removed
++      Logger::info("RtxMod config skipped in Raster Remix.");
++      return;
+     }
+     m_confs[type] = Config::getConfig<type>(configPath);
+     m_confs[type].logOptions(name.c_str());
+     m_config.merge(m_confs[type]);
+-
+-    if constexpr (type == Config::Type_User) {
+-      RtxOptionImpl::addRtxOptionLayer("dxvk.conf", (uint32_t) RtxOptionLayer::SystemLayerPriority::DxvkConf, true, 1.0f, 0.1f, &m_confs[type]);
+-      Logger::info("Set user specific config.");
+-    } else if constexpr (type == Config::Type_App) {
+-      // Set config so that any rtx option initialized later will use the value in that config object
+-      // The start-up config contains the values from the code and dxvk.conf, only.
+-      RtxOptionManager::setStartupConfig(m_config);
+-      RtxOptionImpl::addRtxOptionLayer("<APPLICATION DEFAULT>", (uint32_t) RtxOptionLayer::SystemLayerPriority::Default, true, 1.0f, 0.1f, &m_confs[type]);
+-      Logger::info("Set startup config.");
+-    } else if constexpr ((type == Config::Type_RtxUser) || (type == Config::Type_RtxMod)) {
+-      // Set custom config after the RTX user config has been merged into the config and
+-      // update the RTX options. Contains values from rtx.conf
+-      RtxOptionManager::setCustomConfig(m_config);
+-      RtxOptionImpl::addRtxOptionLayer("rtx.conf", (uint32_t) RtxOptionLayer::SystemLayerPriority::RtxConf, true, 1.0f, 0.1f, nullptr);
+-      Logger::info("Set custom config.");
+-    }
+   }
+   // NV-DXVK end 
+   
+diff --git a/src/dxvk/dxvk_memory.cpp b/src/dxvk/dxvk_memory.cpp
+index c45b53f75..ef96a50e7 100644
+--- a/src/dxvk/dxvk_memory.cpp
++++ b/src/dxvk/dxvk_memory.cpp
+@@ -24,6 +24,7 @@
+ 
+ #include "dxvk_device.h"
+ #include "dxvk_memory.h"
++#include "dxvk_scoped_annotation.h"
+ 
+ namespace dxvk {
+ 
+@@ -546,7 +547,7 @@ DxvkMemory::DxvkMemory() { }
+     // NV-DXVK end
+ 
+     // Prevent unnecessary external host memory fragmentation
+-    bool isDeviceLocal = (flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0;
++    [[maybe_unused]] bool isDeviceLocal = (flags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) != 0;
+   
+     VkDeviceSize chunkSize = pickChunkSize(type->memTypeId, hints);
+ 
 diff --git a/src/dxvk/dxvk_memory_tracker.cpp b/src/dxvk/dxvk_memory_tracker.cpp
-index 2f63960d0..5ebe77ae3 100644
+index 2f63960d0..b1a7e9490 100644
 --- a/src/dxvk/dxvk_memory_tracker.cpp
 +++ b/src/dxvk/dxvk_memory_tracker.cpp
-@@ -1,7 +1,5 @@
- #pragma once
+@@ -1,387 +1,39 @@
+-#pragma once
++// [RASTER REMIX] Stubbed — memory tracker depends on RTX options and ImGui
  #include "dxvk_memory_tracker.h"
 -#include "rtx_render/rtx_imgui.h"
 -#include "rtx_render/rtx_option.h"
- #include "imgui/imgui.h"
+-#include "imgui/imgui.h"
++#include <cstring>
  
  namespace dxvk {
+-  struct MemoryTrackerSettings {
+-    RTX_OPTION_FLAG("rtx.profiler.memory", bool, enable, false, RtxOptionFlags::NoSave, "Enables the memory profiler which allows users to inspect Remix resources using the profiler tool in the Dev Settings Remix window.  This option is disabled by default, and must be enabled from application launch to work correctly.");
+-    RTX_OPTION_FLAG("rtx.profiler.memory", bool, includeWholeFrame, false, RtxOptionFlags::NoSave, "Profiles memory across the entire frame when enabled.  When disabled we only see a snapshot of memory at the time of sampling.  This has some additional CPU performance overhead so is disabled by default.");
+-  };
+-
+-  // If src is longer than (N-2), the last three characters of the copied
+-  // content are replaced with an ellipsis ("...") to indicate truncation.
+-  template <size_t N>
+-  static void copyFirstN(const char* src, char(&dst)[N]) {
+-    // We require at least 5 characters:
+-    //   N-2 (content) must be >= 3 so that "..." fits.
+-    static_assert(N >= 5, "Destination array must be at least 5 characters long.");
+-
+-    // The content area is defined as the first (N-2) characters.
+-    constexpr std::size_t contentSize = N - 2;
+-    size_t srcLen = std::strlen(src);
+-
+-    if (srcLen <= contentSize) {
+-      // No truncation: copy src into dest's content area.
+-      // (strncpy will pad with '\0' if src is shorter than content_size.)
+-      std::strncpy(dst, src, contentSize);
+-    } else {
+-      // Truncated: copy only the first (content_size - 3) characters,
+-      // then append "..." to indicate truncation.
+-      std::size_t numCopy = contentSize - 3;
+-      std::memcpy(dst, src, numCopy);
+-      dst[numCopy] = '.';
+-      dst[numCopy + 1] = '.';
+-      dst[numCopy + 2] = '.';
+-    }
+-
+-    // Ensure that the last element is the null terminator.
+-    dst[N - 1] = '\0';
+-  }
+ 
+   GpuMemoryTracker::GpuMemoryTracker(const char* name, Type type, DxvkMemoryStats::Category category, VkExtent3D extents, VkFormat format) {
+-    if (!MemoryTrackerSettings::enable()) {
+-      return;
+-    }
+-
+-#ifdef REMIX_SHIPPING
+-    // In release builds, just copy the truncated string
+-    copyFirstN<MaxNameStringSize>(name, m_stats.name);
+-#else
+-    m_stats.name = name;
+-#endif
+-    m_stats.extents = extents;
+-    m_stats.format = format;
+-    m_stats.type = type;
+-    m_stats.category = category;
+-
+-    std::lock_guard<mutex> lock(s_mutex);
+-    s_tracker.insert(this);
++    // No-op in Raster Remix
+   }
+ 
+   GpuMemoryTracker::~GpuMemoryTracker() {
+-    if (!MemoryTrackerSettings::enable()) {
+-      return;
+-    }
+-    std::lock_guard<mutex> lock(s_mutex);
+-    s_tracker.erase(this);
+-    if (MemoryTrackerSettings::includeWholeFrame()) {
+-      // Store off a copy of this tracker on release so we can count it against this frame
+-      s_allocsReleasedInFrame.emplace_back(std::move(m_stats));
+-    }
+-  }
+-
+-  void GpuMemoryTracker::onFrameEnd() {
+-    std::lock_guard<mutex> lock(s_mutex);
+-    if (MemoryTrackerSettings::includeWholeFrame()) {
+-      // Clear this frame of allocations so we dont mistakenly leak trackers
+-      s_allocsReleasedInFrame.clear();
+-    }
++    // No-op in Raster Remix
+   }
+ 
++  void GpuMemoryTracker::onFrameEnd() {}
++  void GpuMemoryTracker::renderGui() {}
+ 
+-  void GpuMemoryTracker::finalize(size_t size, bool isDeviceResident, bool wasDemoted) {
+-    m_stats.size = size;
+-    m_stats.isDeviceResident = isDeviceResident;
+-    m_stats.wasDemoted = isDeviceResident && wasDemoted;
+-  }
+-
+-  void GpuMemoryTracker::updateSize(size_t size) {
+-    m_stats.size = size;
+-  }
++  void GpuMemoryTracker::finalize(size_t size, bool isDeviceResident, bool wasDemoted) {}
++  void GpuMemoryTracker::updateSize(size_t size) {}
+ 
+   const char* GpuMemoryTracker::Stats::getName() const {
+ #ifdef REMIX_SHIPPING
+-    return &name[0];
++    return name;
+ #else
+     return name.c_str();
+ #endif
+   }
+ 
+   int GpuMemoryTracker::Stats::compareName(const Stats& other) const {
+-    const char* s1 = getName();
+-    const char* s2 = other.getName();
+-
+-    while (*s1 && *s2) {
+-      int diff = std::tolower(static_cast<unsigned char>(*s1)) - std::tolower(static_cast<unsigned char>(*s2));
+-      if (diff != 0) {
+-        return diff;
+-      }
+-      ++s1;
+-      ++s2;
+-    }
+-    return std::tolower(static_cast<unsigned char>(*s1)) - std::tolower(static_cast<unsigned char>(*s2));
+-  }
+-
+-  std::vector<GpuMemoryTracker::Stats> GpuMemoryTracker::copyToVector() {
+-    if (!MemoryTrackerSettings::enable()) {
+-      return std::vector<Stats>();
+-    }
+-
+-    std::lock_guard<mutex> lock(s_mutex);
+-
+-    // Entries to store
+-    size_t numEntries = s_tracker.size();
+-    if (MemoryTrackerSettings::includeWholeFrame()) {
+-      numEntries += s_allocsReleasedInFrame.size();
+-    }
+-
+-    // Copy off the current state of memory into a vector so we can view it elsewhere
+-    uint32_t i = 0;
+-    std::vector<Stats> trackerAsVector(numEntries);
+-    for (const GpuMemoryTracker* pTracker : s_tracker) {
+-      trackerAsVector[i++] = pTracker->m_stats;
+-    }
+-
+-    // Include the released allocations too if we have any
+-    if (MemoryTrackerSettings::includeWholeFrame()) {
+-      for (const GpuMemoryTracker::Stats& stats : s_allocsReleasedInFrame) {
+-        trackerAsVector[i++] = stats;
+-      }
+-    }
+-
+-    return trackerAsVector;
++    return 0;
+   }
+ 
+-  std::string toString(GpuMemoryTracker::Type type) {
+-    switch (type) {
+-    case GpuMemoryTracker::Type::Image:   return "Image";
+-    case GpuMemoryTracker::Type::Buffer:  return "Buffer";
+-    case GpuMemoryTracker::Type::Unknown: return "Unknown";
+-    default:      return "Invalid";
+-    }
+-  }
+-
+-  std::string toString(dxvk::DxvkMemoryStats::Category category) {
+-    switch (category) {
+-    case dxvk::DxvkMemoryStats::Invalid:                return "Invalid";
+-    case dxvk::DxvkMemoryStats::AppBuffer:              return "AppBuffer";
+-    case dxvk::DxvkMemoryStats::AppTexture:             return "AppTexture";
+-    case dxvk::DxvkMemoryStats::RTXReplacementGeometry: return "RTXReplacementGeometry";
+-    case dxvk::DxvkMemoryStats::RTXBuffer:              return "RTXBuffer";
+-    case dxvk::DxvkMemoryStats::RTXAccelerationStructure: return "RTXAccelerationStructure";
+-    case dxvk::DxvkMemoryStats::RTXOpacityMicromap:     return "RTXOpacityMicromap";
+-    case dxvk::DxvkMemoryStats::RTXMaterialTexture:     return "RTXMaterialTexture";
+-    case dxvk::DxvkMemoryStats::RTXRenderTarget:        return "RTXRenderTarget";
+-    default:                                          return "UnknownCategory";
+-    }
+-  }
+-
+-  std::string toString(VkFormat format) {
+-    std::stringstream formatName;
+-    formatName << format;
+-    return formatName.str();
+-  }
+-
+-  void GpuMemoryTracker::renderGui() {
+-    if (ImGui::CollapsingHeader("Memory Profiler", ImGuiTreeNodeFlags_CollapsingHeader | ImGuiTreeNodeFlags_DefaultOpen)) {
+-      ImGui::TextWrapped("This is a tool to help diagnose memory related problems in Remix.  Press the `Sample Memory` button to take a snapshot of all the memory allocations currently in use by the application.  You can refresh this list at any time by clicking that button.  Once you have a snapshot, the data will be displayed as a list below.");
+-
+-      if (!MemoryTrackerSettings::enable()) {
+-        ImGui::TextWrapped("Memory profiler is disabled.  Please enable in the rtx.conf with `rtx.profiler.memory.enable = True`.");
+-        return;
+-      }
+-
+-  #ifdef REMIX_SHIPPING
+-      ImGui::TextWrapped("In release builds of Remix, we truncate the resource names to 32 characters for performance reasons.  Truncated names end with an ellipsis to signify this.");
+-  #endif
+-      static ImVector<int> selection;
+-      static std::vector<Stats> listOfAllocs;
+-      bool resort = false;
+-      if (ImGui::Button("Sample Memory")) {
+-        // Copy off the current state of memory into the GUI view of allocs
+-        listOfAllocs = GpuMemoryTracker::copyToVector();
+-
+-        // Re-sort if necessary
+-        resort = true;
+-
+-        // De-select all
+-        selection.clear();
+-      }
+-      ImGui::SameLine();
+-
+-      ImGui::Checkbox("Include Whole Frame", &MemoryTrackerSettings::includeWholeFrameObject());
+-
+-      // Options
+-      static ImGuiTableFlags flags =
+-        ImGuiTableFlags_Resizable | ImGuiTableFlags_Reorderable | ImGuiTableFlags_Hideable | ImGuiTableFlags_Sortable | ImGuiTableFlags_SortMulti
+-        | ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersOuter | ImGuiTableFlags_BordersV | ImGuiTableFlags_NoBordersInBody
+-        | ImGuiTableFlags_ScrollY;
++  void GpuMemoryTracker::Stats::log() const {}
+ 
+-      enum GpuMemoryTrackerID {
+-        GpuMemoryTracker_Name = 0,
+-        GpuMemoryTracker_Type,
+-        GpuMemoryTracker_Size,
+-        GpuMemoryTracker_Category,
+-        GpuMemoryTracker_Extents,
+-        GpuMemoryTracker_Format,
+-        GpuMemoryTracker_isGpuResident,
+-        GpuMemoryTracker_wasDemoted,
+-
+-        Count
+-      };
+-
+-      if (ImGui::BeginTable("table_sorting", GpuMemoryTrackerID::Count, flags, ImVec2(0.0f, ImGui::GetTextLineHeightWithSpacing() * 15), 0.0f)) {
+-        ImGui::TableSetupColumn("Name", ImGuiTableColumnFlags_WidthFixed, 0.0f, GpuMemoryTracker_Name);
+-        ImGui::TableSetupColumn("Type", ImGuiTableColumnFlags_PreferSortDescending | ImGuiTableColumnFlags_WidthFixed, 0.0f, GpuMemoryTracker_Type);
+-        ImGui::TableSetupColumn("Size", ImGuiTableColumnFlags_DefaultSort | ImGuiTableColumnFlags_WidthFixed, 0.0f, GpuMemoryTracker_Size);
+-        ImGui::TableSetupColumn("Category", ImGuiTableColumnFlags_PreferSortDescending | ImGuiTableColumnFlags_WidthFixed, 0.0f, GpuMemoryTracker_Category);
+-        ImGui::TableSetupColumn("Extents", ImGuiTableColumnFlags_PreferSortDescending | ImGuiTableColumnFlags_WidthFixed, 0.0f, GpuMemoryTracker_Extents);
+-        ImGui::TableSetupColumn("Format", ImGuiTableColumnFlags_PreferSortDescending | ImGuiTableColumnFlags_WidthFixed, 0.0f, GpuMemoryTracker_Format);
+-        ImGui::TableSetupColumn("Is GPU?", ImGuiTableColumnFlags_PreferSortDescending | ImGuiTableColumnFlags_WidthFixed, 0.0f, GpuMemoryTracker_isGpuResident);
+-        ImGui::TableSetupColumn("Was Demoted?", ImGuiTableColumnFlags_PreferSortDescending | ImGuiTableColumnFlags_WidthFixed, 0.0f, GpuMemoryTracker_wasDemoted);
+-        ImGui::TableSetupScrollFreeze(0, 1); // Make row always visible
+-        ImGui::TableHeadersRow();
+-
+-        if (ImGuiTableSortSpecs* sortSpecs = ImGui::TableGetSortSpecs()) {
+-          if (sortSpecs->SpecsDirty || resort) {
+-            const auto sortComparison = [&sortSpecs](const Stats& a, const Stats& b) -> bool {
+-              for (int n = 0; n < sortSpecs->SpecsCount; n++) {
+-                const ImGuiTableColumnSortSpecs* sort_spec = &sortSpecs->Specs[n];
+-                int64_t delta = 0;
+-                switch (sort_spec->ColumnUserID) {
+-                case GpuMemoryTracker_Name:
+-                  delta = a.compareName(b);
+-                  break;
+-                case GpuMemoryTracker_Size:
+-                  delta = ((int64_t) a.size - (int64_t) b.size);
+-                  break;
+-                case GpuMemoryTracker_Category:
+-                  delta = ((int) a.category - (int) b.category);
+-                  break;
+-                case GpuMemoryTracker_Extents:
+-                  if (a.extents.width != b.extents.width) {
+-                    delta = (a.extents.width - b.extents.width);
+-                  } else if (a.extents.height != b.extents.height) {
+-                    delta = (a.extents.height - b.extents.height);
+-                  } else {
+-                    delta = (a.extents.depth - b.extents.depth);
+-                  }
+-                  break;
+-                case GpuMemoryTracker_Format:
+-                  delta = ((int) a.format - (int) b.format);
+-                  break;
+-                case GpuMemoryTracker_Type:
+-                  delta = ((int) a.type - (int) b.type);
+-                  break;
+-                case GpuMemoryTracker_isGpuResident:
+-                  delta = ((int) a.isDeviceResident - (int) b.isDeviceResident);
+-                  break;
+-                case GpuMemoryTracker_wasDemoted:
+-                  delta = ((int) a.wasDemoted - (int) b.wasDemoted);
+-                  break;
+-                default:
+-                  IM_ASSERT(0);
+-                  break;
+-                }
+-                if (delta != 0)
+-                  return (sort_spec->SortDirection == ImGuiSortDirection_Ascending) ? (delta < 0) : (delta > 0);
+-              }
+-              return false;
+-            };
+-
+-            std::sort(listOfAllocs.begin(), listOfAllocs.end(), sortComparison);
+-
+-            sortSpecs->SpecsDirty = false;
+-            resort = false;
+-          }
+-        }
+-
+-        ImGuiListClipper clipper;
+-        clipper.Begin(listOfAllocs.size());
+-        while (clipper.Step())
+-          for (int rowIdx = clipper.DisplayStart; rowIdx < clipper.DisplayEnd; rowIdx++) {
+-            // Display a data item
+-            const Stats& item = listOfAllocs[rowIdx];
+-            char label[32];
+-            sprintf(label, "mem_prof_r_%04d", rowIdx);
+-            ImGui::PushID(label);
+-            ImGui::TableNextRow();
+-            ImGui::TableNextColumn();
+-            const bool isSelected = selection.contains(rowIdx);
+-            if (ImGui::Selectable(item.getName(), isSelected, ImGuiSelectableFlags_SpanAllColumns | ImGuiSelectableFlags_AllowItemOverlap)) {
+-              if (ImGui::GetIO().KeyCtrl) {
+-                if (isSelected) {
+-                  selection.find_erase_unsorted(rowIdx);
+-                } else {
+-                  selection.push_back(rowIdx);
+-                }
+-              } else if (ImGui::GetIO().KeyShift) {
+-                if (isSelected) {
+-                  selection.find_erase_unsorted(rowIdx);
+-                } else if (selection.size() > 0) {
+-                  int start = std::min(selection.back() + 1, rowIdx);
+-                  int end = std::max(selection.back() + 1, rowIdx);
+-                  for (int i = start; i <= end; i++) {
+-                    selection.push_back(i);
+-                  }
+-                } else {
+-                  selection.push_back(rowIdx);
+-                }
+-              } else {
+-                selection.clear();
+-                selection.push_back(rowIdx);
+-              }
+-            }
+-            ImGui::TableNextColumn();
+-            ImGui::TextUnformatted(toString(item.type).c_str());
+-            ImGui::TableNextColumn();
+-            ImGui::TextUnformatted(str::formatBytes(item.size).c_str());
+-            ImGui::TableNextColumn();
+-            ImGui::TextUnformatted(toString(item.category).c_str());
+-            ImGui::TableNextColumn();
+-            ImGui::Text("%d x %d x %d", item.extents.width, item.extents.height, item.extents.depth);
+-            ImGui::TableNextColumn();
+-            ImGui::TextUnformatted(toString(item.format).c_str());
+-            ImGui::TableNextColumn();
+-            ImGui::TextUnformatted(item.isDeviceResident ? "Y" : "N");
+-            ImGui::TableNextColumn();
+-            ImGui::TextUnformatted(item.wasDemoted ? "Y" : "N");
+-            ImGui::PopID();
+-          }
+-        ImGui::EndTable();
+-
+-        size_t totalVram = 0;
+-        size_t totalRam = 0;
+-        for (const int itemIdx : selection) {
+-          const Stats& item = listOfAllocs[itemIdx];
+-          if (item.isDeviceResident) {
+-            totalVram += item.size;
+-          } else {
+-            totalRam += item.size;
+-          }
+-        }
+-
+-        ImGui::Separator();
+-        
+-        if (ImGui::Button("Write to Log")) {
+-          Logger::info("GPU Memory Profiler Log ---");
+-          // Write all allocs to the log file
+-          for (const auto& alloc : listOfAllocs) {
+-            alloc.log();
+-          }
+-        }
+-
+-        ImGui::Separator();
+-
+-        ImGui::Text(str::format("Selected: ", selection.size(), "\n"
+-                                "- Total VRAM: ", str::formatBytes(totalVram), "\n"
+-                                "- Total  RAM: ", str::formatBytes(totalRam), "\n"
+-        ).c_str());
+-      }
+-    }
++  std::vector<GpuMemoryTracker::Stats> GpuMemoryTracker::copyToVector() {
++    return {};
+   }
+ 
+-  void GpuMemoryTracker::Stats::log() const {
+-    Logger::info(str::format("Alloc:\n",
+-                 "  Name: ", getName(), "\n",
+-                 "  Type: ", toString(type), "\n",
+-                 "  Size: ", str::formatBytes(size), "\n",
+-                 "  Category: ", toString(category), "\n",
+-                 "  Extents: (", extents.width, " x ", extents.height, " x ", extents.depth, ")\n",
+-                 "  Format: ", toString(format), "\n",
+-                 "  DeviceResident: ", isDeviceResident ? "true" : "false", "\n",
+-                 "  WasDemoted: ", wasDemoted ? "true" : "false"));
+-  }
+-}
+\ No newline at end of file
++}
 diff --git a/src/dxvk/dxvk_objects.h b/src/dxvk/dxvk_objects.h
-index db9c8f6f1..863ffa2b5 100644
+index db9c8f6f1..50bccca80 100644
 --- a/src/dxvk/dxvk_objects.h
 +++ b/src/dxvk/dxvk_objects.h
-@@ -33,33 +33,7 @@
+@@ -33,56 +33,14 @@
  #include "dxvk_pipemanager.h"
  #include "dxvk_renderpass.h"
  #include "dxvk_unbound.h"
@@ -1920,121 +3994,467 @@ index db9c8f6f1..863ffa2b5 100644
 -#include "rtx_render/rtx_game_capturer.h"
 -#include "rtx_render/rtx_dust_particles.h"
 -#include "rtx_render/rtx_particle_system.h"
--
--#include "rtx_render/rtx_denoise_type.h"
-+
- #include "../util/util_lazy.h"
- #include "../util/util_active.h"
++#include "imgui/dxvk_imgui.h"
  
-@@ -68,7 +42,7 @@ namespace dxvk {
+-#include "rtx_render/rtx_denoise_type.h"
+ #include "../util/util_lazy.h"
+-#include "../util/util_active.h"
++// RASTER REMIX: util_active.h removed — not needed without RT passes
+ 
+ namespace dxvk {
+ 
    class DxvkDevice;
-   class DxvkDenoise;
-   class DxvkRayReconstruction;
+-  class DxvkDenoise;
+-  class DxvkRayReconstruction;
 -  class DxvkRtxdiRayQuery;
-+// [STUBBED BY GEMINI]   class DxvkRtxdiRayQuery;
-   class DxvkReSTIRGIRayQuery;
-   class DxvkToneMapping;
-   class DxvkBloom;
-@@ -78,8 +52,8 @@ namespace dxvk {
-   class DxvkPostFx;
-   class OpacityMicromapManager;
-   class ImGUI;
+-  class DxvkReSTIRGIRayQuery;
+-  class DxvkToneMapping;
+-  class DxvkBloom;
+-  class RtxGeometryUtils;
+-  class CompositePass;
+-  class DebugView;
+-  class DxvkPostFx;
+-  class OpacityMicromapManager;
+-  class ImGUI;
 -  class RtxTextureManager;
 -  class NeuralRadianceCache;
-+// [STUBBED BY GEMINI]   class RtxTextureManager;
-+// [STUBBED BY GEMINI]   class NeuralRadianceCache;
-   class DxvkXeSS;
+-  class DxvkXeSS;
+-
+-  class NGXContext;
  
-   class NGXContext;
-@@ -142,7 +116,7 @@ namespace dxvk {
-       return m_pathtracerGbuffer.get();
+   class DxvkObjects {
+ 
+@@ -134,187 +92,21 @@ namespace dxvk {
+       return m_metaPack.get(m_device);
      }
  
+-    RtxGlobalVolumetrics& metaGlobalVolumetrics() {
+-      return m_globalVolumetrics.get();
+-    }
+-
+-    DxvkPathtracerGbuffer& metaPathtracerGbuffer() {
+-      return m_pathtracerGbuffer.get();
+-    }
+-
 -    DxvkRtxdiRayQuery& metaRtxdiRayQuery() {
-+// [STUBBED BY GEMINI]     DxvkRtxdiRayQuery& metaRtxdiRayQuery() {
-       return m_rtxdiRayQuery.get();
-     }
- 
-@@ -166,7 +140,7 @@ namespace dxvk {
-       return m_neeCache.get();
-     }
- 
+-      return m_rtxdiRayQuery.get();
+-    }
+-
+-    DxvkReSTIRGIRayQuery& metaReSTIRGIRayQuery() {
+-      return m_restirgiRayQuery.get();
+-    }
+-
+-    DxvkPathtracerIntegrateDirect& metaPathtracerIntegrateDirect() {
+-      return m_pathtracerIntegrateDirect.get();
+-    }
+-
+-    DxvkPathtracerIntegrateIndirect& metaPathtracerIntegrateIndirect() {
+-      return m_pathtracerIntegrateIndirect.get();
+-    }
+-
+-    DemodulatePass& metaDemodulate() {
+-      return m_demodulate.get();
+-    }
+-
+-    NeeCachePass& metaNeeCache() {
+-      return m_neeCache.get();
+-    }
+-
 -    NeuralRadianceCache& metaNeuralRadianceCache() {
-+// [STUBBED BY GEMINI]     NeuralRadianceCache& metaNeuralRadianceCache() {
-       return m_neuralRadianceCache.get();
-     }
- 
-@@ -210,7 +184,7 @@ namespace dxvk {
-       return m_rayReconstruction.get();
-     }
- 
+-      return m_neuralRadianceCache.get();
+-    }
+-
+-    DxvkDenoise& metaPrimaryDirectLightDenoiser() {
+-      return m_primaryDirectLightDenoiser.get();
+-    }
+-
+-    DxvkDenoise& metaPrimaryIndirectLightDenoiser() {
+-      return m_primaryIndirectLightDenoiser.get();
+-    }
+-
+-    DxvkDenoise& metaPrimaryCombinedLightDenoiser() {
+-      return m_primaryCombinedLightDenoiser.get();
+-    }
+-
+-    DxvkDenoise& metaSecondaryCombinedLightDenoiser() {
+-      return m_secondaryCombinedLightDenoiser.get();
+-    }
+-
+-    NGXContext& metaNGXContext() {
+-      return m_ngxContext.get();
+-    }
+-
+-    DxvkDenoise& metaReferenceDenoiserSecondLobe0() {
+-      return m_referenceDenoiserSecondLobe0.get();
+-    }
+-    
+-    DxvkDenoise& metaReferenceDenoiserSecondLobe1() {
+-      return m_referenceDenoiserSecondLobe1.get();
+-    }
+-
+-    DxvkDenoise& metaReferenceDenoiserSecondLobe2() {
+-      return m_referenceDenoiserSecondLobe2.get();
+-    }
+-
+-    DxvkDLSS& metaDLSS() {
+-      return m_dlss.get();
+-    }
+-
+-    DxvkRayReconstruction& metaRayReconstruction() {
+-      return m_rayReconstruction.get();
+-    }
+-
 -    DxvkDLFG& metaDLFG() {
-+// [STUBBED BY GEMINI]     DxvkDLFG& metaDLFG() {
-       return m_dlfg.get();
-     }
+-      return m_dlfg.get();
+-    }
+-
+-    DxvkNIS& metaNIS() {
+-      return m_nis.get();
+-    }
+-
+-    DxvkTemporalAA& metaTAA() {
+-      return m_taa.get();
+-    }
+-
+-    DxvkXeSS& metaXeSS() {
+-      return m_xess.get();
+-    }
+-
+-    CompositePass& metaComposite() {
+-      return m_composite.get();
+-    }
+-
+-    DebugView& metaDebugView() {
+-      return m_debug_view.get();
+-    }
+-
+-    DxvkAutoExposure& metaAutoExposure() {
+-      return m_autoExposure.get();
+-    }
+-
+-    DxvkToneMapping& metaToneMapping() {
+-      return m_toneMapping.get();
+-    }
+-
+-    DxvkLocalToneMapping& metaLocalToneMapping() {
+-      return m_localToneMapping.get();
+-    }
+-
+-    DxvkBloom& metaBloom() {
+-      return m_bloom.get();
+-    }
+-
+-    RtxGeometryUtils& metaGeometryUtils() {
+-      return m_geometryUtils.get();
+-    }
+-
+-    RtxImageUtils& metaImageUtils() {
+-      return m_imageUtils.get();
+-    }
+-
+-    DxvkPostFx& metaPostFx() {
+-      return m_postFx.get();
+-    }
+-    
+-    RtxReflex& metaReflex() {
+-      return m_reflex.get(m_device);
+-    }
+-
+-    SceneManager& getSceneManager() {
+-      return m_sceneManager;
+-    }
++    // RASTER REMIX: All RT pass accessors removed (metaGlobalVolumetrics, metaPathtracerGbuffer,
++    // metaDLSS, metaDenoise, metaSceneManager, etc.)
  
-@@ -274,11 +248,11 @@ namespace dxvk {
-       return m_rtResources;
-     }
- 
+-    Resources& getResources() {
+-      return m_rtResources;
+-    }
+-
 -    RtxInitializer& getRtxInitializer() {
-+// [STUBBED BY GEMINI]     RtxInitializer& getRtxInitializer() {
-       return m_rtInitializer;
-     }
- 
+-      return m_rtInitializer;
+-    }
+-
 -    RtxTextureManager& getTextureManager();
-+// [STUBBED BY GEMINI]     RtxTextureManager& getTextureManager();
-     
+-    
      ImGUI& getImgui() {
        return m_imgui;
-@@ -343,8 +317,8 @@ namespace dxvk {
-     // RTX Management
-     SceneManager       m_sceneManager;
-     Resources          m_rtResources;
+     }
+ 
+-    const OpacityMicromapManager* getOpacityMicromapManager() {
+-      return m_sceneManager.getOpacityMicromapManager();
+-    }
+-
+-    const TerrainBaker& getTerrainBaker() {
+-      return m_sceneManager.getTerrainBaker();
+-    }
+-
+-    AssetExporter& metaExporter() {
+-      return m_exporter.get();
+-    }
+-
+-    Rc<GameCapturer> capturer() {
+-      return m_capturer;
+-    }
+-
+-    RtxDustParticles& metaDustParticles() {
+-      return m_dustParticles.get(m_device);
+-    }
+-
+-    RtxParticleSystemManager& metaParticleSystem() {
+-      return m_particleSystem.get(m_device);
+-    }
+-
+     void onDestroy();
+ 
+-    void setWindowHandle(const HWND hwnd) {
+-      m_lastKnownWindowHandle.store(hwnd);
++    void setWindowHandle(HWND handle) {
++      m_lastKnownWindowHandle = handle;
+     }
+-    HWND getLastKnownWindowHandle() const {
+-      return m_lastKnownWindowHandle.load();
++
++    HWND getWindowHandle() const {
++      return m_lastKnownWindowHandle;
+     }
+ 
+   private:
+@@ -336,57 +128,9 @@ namespace dxvk {
+     Lazy<DxvkMetaResolveObjects>      m_metaResolve;
+     Lazy<DxvkMetaPackObjects>         m_metaPack;
+ 
++    // RASTER REMIX: All RT members removed (SceneManager, Resources, Active<...>, Lazy<...> for RT passes, etc.)
+ 
+-    // Note: SceneManager(...) retrieves m_exporter from DxvkObjects(), so m_exporter has to be initialized prior to m_sceneManager
+-    Lazy<AssetExporter>               m_exporter;
+-
+-    // RTX Management
+-    SceneManager       m_sceneManager;
+-    Resources          m_rtResources;
 -    RtxInitializer     m_rtInitializer;
 -    std::unique_ptr<RtxTextureManager> m_textureManager;
-+// [STUBBED BY GEMINI]     RtxInitializer     m_rtInitializer;
-+// [STUBBED BY GEMINI]     std::unique_ptr<RtxTextureManager> m_textureManager;
-     ImGUI              m_imgui;
-     Rc<GameCapturer>   m_capturer;
- 
-@@ -352,19 +326,19 @@ namespace dxvk {
-     // RTX Shaders
-     Active<RtxGlobalVolumetrics>            m_globalVolumetrics;
-     Active<DxvkPathtracerGbuffer>           m_pathtracerGbuffer;
+-    ImGUI              m_imgui;
+-    Rc<GameCapturer>   m_capturer;
+-
+-
+-    // RTX Shaders
+-    Active<RtxGlobalVolumetrics>            m_globalVolumetrics;
+-    Active<DxvkPathtracerGbuffer>           m_pathtracerGbuffer;
 -    Active<DxvkRtxdiRayQuery>               m_rtxdiRayQuery;
-+// [STUBBED BY GEMINI]     Active<DxvkRtxdiRayQuery>               m_rtxdiRayQuery;
-     Active<DxvkReSTIRGIRayQuery>            m_restirgiRayQuery;
-     Active<DxvkPathtracerIntegrateDirect>   m_pathtracerIntegrateDirect;
-     Active<DxvkPathtracerIntegrateIndirect> m_pathtracerIntegrateIndirect;
-     Active<DemodulatePass>                  m_demodulate;
-     Active<NeeCachePass>                    m_neeCache;
+-    Active<DxvkReSTIRGIRayQuery>            m_restirgiRayQuery;
+-    Active<DxvkPathtracerIntegrateDirect>   m_pathtracerIntegrateDirect;
+-    Active<DxvkPathtracerIntegrateIndirect> m_pathtracerIntegrateIndirect;
+-    Active<DemodulatePass>                  m_demodulate;
+-    Active<NeeCachePass>                    m_neeCache;
 -    Active<NeuralRadianceCache>             m_neuralRadianceCache;
-+// [STUBBED BY GEMINI]     Active<NeuralRadianceCache>             m_neuralRadianceCache;
-     Active<DxvkDenoise>                     m_primaryDirectLightDenoiser;
-     Active<DxvkDenoise>                     m_primaryIndirectLightDenoiser;
-     Active<DxvkDenoise>                     m_primaryCombinedLightDenoiser;
-     Active<DxvkDenoise>                     m_secondaryCombinedLightDenoiser;
-     Active<NGXContext>                      m_ngxContext;
+-    Active<DxvkDenoise>                     m_primaryDirectLightDenoiser;
+-    Active<DxvkDenoise>                     m_primaryIndirectLightDenoiser;
+-    Active<DxvkDenoise>                     m_primaryCombinedLightDenoiser;
+-    Active<DxvkDenoise>                     m_secondaryCombinedLightDenoiser;
+-    Active<NGXContext>                      m_ngxContext;
 -    Active<DxvkDLFG>                        m_dlfg;
-+// [STUBBED BY GEMINI]     Active<DxvkDLFG>                        m_dlfg;
-     // Secondary reference denoisers used for a second lobe when non-combined signal reference denoising is enabled
-     Active<DxvkDenoise>                     m_referenceDenoiserSecondLobe0;
-     Active<DxvkDenoise>                     m_referenceDenoiserSecondLobe1;
+-    // Secondary reference denoisers used for a second lobe when non-combined signal reference denoising is enabled
+-    Active<DxvkDenoise>                     m_referenceDenoiserSecondLobe0;
+-    Active<DxvkDenoise>                     m_referenceDenoiserSecondLobe1;
+-    Active<DxvkDenoise>                     m_referenceDenoiserSecondLobe2;
+-    Active<DxvkDLSS>                        m_dlss;
+-    Active<DxvkRayReconstruction>           m_rayReconstruction;
+-    Active<DxvkNIS>                         m_nis;
+-    Active<DxvkTemporalAA>                  m_taa;
+-    Active<DxvkXeSS>                        m_xess;
+-    Active<CompositePass>                   m_composite;
+-    Active<DebugView>                       m_debug_view;
+-    Active<DxvkAutoExposure>                m_autoExposure;
+-    Active<DxvkToneMapping>                 m_toneMapping;
+-    Active<DxvkLocalToneMapping>            m_localToneMapping;
+-    Active<DxvkBloom>                       m_bloom;
+-    Active<RtxGeometryUtils>                m_geometryUtils;
+-    Active<RtxImageUtils>                   m_imageUtils;
+-    Active<DxvkPostFx>                      m_postFx;
+-    Lazy<RtxReflex>                         m_reflex;
+-    Lazy<RtxDustParticles>                  m_dustParticles;
+-    Lazy<RtxParticleSystemManager>          m_particleSystem;
+-
+-    std::atomic<HWND>                       m_lastKnownWindowHandle;
++    ImGUI                             m_imgui;
++    HWND                              m_lastKnownWindowHandle = (HWND)0;
+   };
+ }
+diff --git a/src/dxvk/dxvk_options.cpp b/src/dxvk/dxvk_options.cpp
+index 38b6a87be..48ae0d5eb 100644
+--- a/src/dxvk/dxvk_options.cpp
++++ b/src/dxvk/dxvk_options.cpp
+@@ -1,5 +1,4 @@
+ /*
+-/*
+ * Copyright (c) 2021-2023, NVIDIA CORPORATION. All rights reserved.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+@@ -43,7 +42,7 @@ namespace dxvk {
+ 
+     // NV-DXVK start: tell the user they cant run Remix
+     float nvidiaMinDriverFloat = config.getOption<float>("dxvk.nvidiaMinDriver", 572.18f, "DXVK_REMIX_NVIDIA_MIN_DRIVER");
+-    float nvidiaGfnMinDriverFloat = config.getOption<float>("dxvk.nvidiaGfnMinDriver", 527.01f);
++    [[maybe_unused]] float nvidiaGfnMinDriverFloat = config.getOption<float>("dxvk.nvidiaGfnMinDriver", 527.01f);
+     float nvidiaLinuxMinDriverFloat = config.getOption<float>("dxvk.nvidiaLinuxMinDriver", 525.60f);
+ 
+     // Convert human readable version from settings to proper version number
+diff --git a/src/dxvk/dxvk_pipemanager.cpp b/src/dxvk/dxvk_pipemanager.cpp
+index 8ffce8248..dc15188f2 100644
+--- a/src/dxvk/dxvk_pipemanager.cpp
++++ b/src/dxvk/dxvk_pipemanager.cpp
+@@ -80,23 +80,7 @@ namespace dxvk {
+   }
+ 
+ 
+-  DxvkRaytracingPipeline* DxvkPipelineManager::createRaytracingPipeline(
+-    const DxvkRaytracingPipelineShaders& shaders) {
+-    if (shaders.groups.empty())
+-      return nullptr;
+-
+-    std::lock_guard<dxvk::mutex> lock(m_mutex);
+-
+-    auto pair = m_raytracingPipelines.find(shaders);
+-    if (pair != m_raytracingPipelines.end())
+-      return &pair->second;
+-
+-    auto iter = m_raytracingPipelines.emplace(
+-      std::piecewise_construct,
+-      std::tuple(shaders),
+-      std::tuple(this, shaders));
+-    return &iter.first->second;
+-  }
++  // [RASTER REMIX] Raytracing pipeline creation removed
+   
+ 
+   void DxvkPipelineManager::registerShader(
+@@ -110,24 +94,7 @@ namespace dxvk {
+ // NV-DXVK end
+   }
+ 
+-  // NV-DXVK start: compile raytracing shaders on shader compilation threads
+-  namespace WAR4000939 {
+-    extern bool shouldApply(const Rc<DxvkDevice>& device);
+-  }
+-  void DxvkPipelineManager::registerRaytracingShaders(
+-    const DxvkRaytracingPipelineShaders& shaders) {
+-    if (m_stateCache != nullptr)
+-      m_stateCache->registerRaytracingShaders(shaders);
+-    else {
+-      // WAR: when pipelines are not compiled on the compilation threadpool
+-      // we need to frontload the OMM pipeline compiles in-place due to driver bug.
+-      if (WAR4000939::shouldApply(m_device) &&
+-          0 != (shaders.pipelineFlags & VK_PIPELINE_CREATE_RAY_TRACING_OPACITY_MICROMAP_BIT_EXT)) {
+-        createRaytracingPipeline(shaders)->compilePipeline();
+-      }
+-    }
+-  }
+-  // NV-DXVK end
++  // [RASTER REMIX] registerRaytracingShaders removed
+ 
+   DxvkPipelineCount DxvkPipelineManager::getPipelineCount() const {
+     DxvkPipelineCount result;
+diff --git a/src/dxvk/dxvk_pipemanager.h b/src/dxvk/dxvk_pipemanager.h
+index d072b11a3..4acfd1b98 100644
+--- a/src/dxvk/dxvk_pipemanager.h
++++ b/src/dxvk/dxvk_pipemanager.h
+@@ -55,7 +55,7 @@ namespace dxvk {
+   class DxvkPipelineManager {
+     friend class DxvkComputePipeline;
+     friend class DxvkGraphicsPipeline;
+-    friend class DxvkRaytracingPipeline;
++    // RASTER REMIX: friend class DxvkRaytracingPipeline removed
+   public:
+     
+     DxvkPipelineManager(
+@@ -88,17 +88,7 @@ namespace dxvk {
+     DxvkGraphicsPipeline* createGraphicsPipeline(
+       const DxvkGraphicsPipelineShaders& shaders);
+         
+-    /**
+-     * \brief Retrieves a raytracing pipeline object
+-     * 
+-     * If a pipeline for the given shader stage objects
+-     * already exists, it will be returned. Otherwise,
+-     * a new pipeline will be created.
+-     * \param [in] shaders Shaders for the pipeline
+-     * \returns Raytracing pipeline object
+-     */
+-    DxvkRaytracingPipeline* createRaytracingPipeline(
+-      const DxvkRaytracingPipelineShaders& shaders);
++    // RASTER REMIX: createRaytracingPipeline removed
+ 
+     /*
+      * \brief Registers a shader
+@@ -114,18 +104,7 @@ namespace dxvk {
+       bool                          isRemixShader = false);
+ // NV-DXVK end
+ 
+-    // NV-DXVK start: compile raytracing shaders on shader compilation threads
+-    /**
+-     * \brief Registers a set of raytracing shaders
+-     * 
+-     * Makes the shader available to the pipeline
+-     * compiler, and starts compiling all pipelines
+-     * for which all shaders become available.
+-     * \param [in] shaders The shaders to add
+-     */
+-    void registerRaytracingShaders(
+-      const DxvkRaytracingPipelineShaders& shaders);
+-    // NV-DXVK end
++    // RASTER REMIX: registerRaytracingShaders removed
+ 
+     /**
+      * \brief Retrieves total pipeline count
+@@ -169,10 +148,7 @@ namespace dxvk {
+       DxvkGraphicsPipeline,
+       DxvkHash, DxvkEq> m_graphicsPipelines;
+ 
+-    std::unordered_map<
+-      DxvkRaytracingPipelineShaders,
+-      DxvkRaytracingPipeline,
+-      DxvkHash, DxvkEq> m_raytracingPipelines;
++    // RASTER REMIX: m_raytracingPipelines removed
+ 
+   };
+   
 diff --git a/src/dxvk/dxvk_queue.cpp b/src/dxvk/dxvk_queue.cpp
-index be79f3a5f..b948cd8c4 100644
+index be79f3a5f..def95bb19 100644
 --- a/src/dxvk/dxvk_queue.cpp
 +++ b/src/dxvk/dxvk_queue.cpp
-@@ -77,7 +77,7 @@ namespace dxvk {
+@@ -23,8 +23,9 @@
+ #include "dxvk_queue.h"
+ #include "dxvk_scoped_annotation.h"
+ 
+-#include "NvLowLatencyVk.h"
+-#include "GFSDK_Aftermath_GpuCrashDump.h"
++// [RASTER REMIX] Reflex/Aftermath SDKs not available
++// #include "NvLowLatencyVk.h"
++// #include "GFSDK_Aftermath_GpuCrashDump.h"
+ 
+ namespace dxvk {
+   
+@@ -77,17 +78,8 @@ namespace dxvk {
    }
  
  
 -// NV-DXVK begin: DLFG integration
-+// [STUBBED BY GEMINI] // NV-DXVK begin: DLFG integration
-   void DxvkSubmissionQueue::setupFrameInterpolation(DxvkFrameInterpolationInfo frameInterpolationInfo) {
-     ZoneScoped;
-     std::unique_lock<dxvk::mutex> lock(m_mutex);
-@@ -108,7 +108,7 @@ namespace dxvk {
+-  void DxvkSubmissionQueue::setupFrameInterpolation(DxvkFrameInterpolationInfo frameInterpolationInfo) {
+-    ZoneScoped;
+-    std::unique_lock<dxvk::mutex> lock(m_mutex);
+-
+-    DxvkSubmitEntry entry = { };
+-    entry.frameInterpolation = std::move(frameInterpolationInfo);
+-    m_submitQueue.push(std::move(entry));
+-    m_appendCond.notify_all();
+-  }
+-// NV-DXVK end
++  // NV-DXVK begin: DLFG integration (RASTER REMIX: setupFrameInterpolation removed)
++  // NV-DXVK end
+ 
+   void DxvkSubmissionQueue::synchronizeSubmission(
+           DxvkSubmitStatus*   status) {
+@@ -108,7 +100,7 @@ namespace dxvk {
        return m_submitQueue.empty();
      });
  
@@ -2043,43 +4463,74 @@ index be79f3a5f..b948cd8c4 100644
      if (m_lastPresenter != nullptr) {
        m_lastPresenter->synchronize();
        m_lastPresenter = nullptr;
-@@ -163,7 +163,7 @@ namespace dxvk {
-           // work with the reflex render_submit markers.  This is because in Remix we essentially
-           // have one large cmd list of work (inject rtx) and we want the Reflex timing to prioritize
-           // this work for best latency reduction while minimizing performance impact.  So we tag the submit
+@@ -154,31 +146,13 @@ namespace dxvk {
+         std::lock_guard<dxvk::mutex> lockQueue(m_mutexQueue);
+         // NV-DXVK end
+ 
+-          // NV-DXVK start: Reflex render submit
+-        const auto& reflex = m_device->getCommon()->metaReflex();
+-        // NV-DXVK end
++        // [RASTER REMIX] Reflex removed
+ 
+         if (entry.submit.cmdList != nullptr) {
+-          // When using Reflex with Remix, we need to wrap the queue submit for the injectRTX rendering
+-          // work with the reflex render_submit markers.  This is because in Remix we essentially
+-          // have one large cmd list of work (inject rtx) and we want the Reflex timing to prioritize
+-          // this work for best latency reduction while minimizing performance impact.  So we tag the submit
 -          // upstream (RtxContext) which contains the injectRTX call as the one we want to wrap with Reflex markers.
-+// [STUBBED BY GEMINI]           // upstream (RtxContext) which contains the injectRTX call as the one we want to wrap with Reflex markers.
-           // NV-DXVK start: Reflex render submit
-           if (entry.submit.insertReflexRenderMarkers) {
-             reflex.beginRendering(entry.submit.cachedReflexFrameId);
-@@ -178,7 +178,7 @@ namespace dxvk {
-           }
-           // NV-DXVK end
+-          // NV-DXVK start: Reflex render submit
+-          if (entry.submit.insertReflexRenderMarkers) {
+-            reflex.beginRendering(entry.submit.cachedReflexFrameId);
+-          }
+-
+           status = entry.submit.cmdList->submit(
+             entry.submit.waitSync,
+             entry.submit.wakeSync);
+-
+-          if (entry.submit.insertReflexRenderMarkers) {
+-            reflex.endRendering(entry.submit.cachedReflexFrameId);
+-          }
+-          // NV-DXVK end
          }
 -        // NV-DXVK start: DLFG integration
-+// [STUBBED BY GEMINI]         // NV-DXVK start: DLFG integration
          else if (entry.frameInterpolation.valid()) {
            // stash frame interpolation data for next present call
            m_currentFrameInterpolationData = entry.frameInterpolation;
-@@ -196,14 +196,14 @@ namespace dxvk {
-           }
-           // NV-DXVK end
+@@ -186,33 +160,9 @@ namespace dxvk {
+         else if (entry.present.presenter != nullptr) {
+           m_lastPresenter = entry.present.presenter;
  
+-          // NV-DXVK start: Reflex present start
+-          const auto insertReflexPresentMarkers = entry.present.insertReflexPresentMarkers;
+-          const auto cachedReflexFrameId = entry.present.cachedReflexFrameId;
+-
+-          // Note: Only insert Reflex Present markers around the Presenter's present call if requested.
+-          if (insertReflexPresentMarkers) {
+-            reflex.beginPresentation(cachedReflexFrameId);
+-          }
+-          // NV-DXVK end
+-
 -          // NV-DXVK start: DLFG acquired image information retrieval
-+// [STUBBED BY GEMINI]           // NV-DXVK start: DLFG acquired image information retrieval
            const auto cachedAcquiredImageIndex = entry.present.cachedAcquiredImageIndex;
-           // NV-DXVK end
+-          // NV-DXVK end
  
-           // m_device->vkd()->vkQueueWaitIdle(m_device->queues().graphics.queueHandle);
+-          // m_device->vkd()->vkQueueWaitIdle(m_device->queues().graphics.queueHandle);
            status = entry.present.presenter->presentImage(&entry.status->result, entry.present, m_currentFrameInterpolationData, cachedAcquiredImageIndex);
 -          // if both submit and DLFG+present run on the same queue, then we need to wait for present to avoid racing on the queue
 -#if __DLFG_USE_GRAPHICS_QUEUE
-+// [STUBBED BY GEMINI]           // if both submit and DLFG+present run on the same queue, then we need to wait for present to avoid racing on the queue
-+// [STUBBED BY GEMINI] #if __DLFG_USE_GRAPHICS_QUEUE
-           entry.present.presenter->synchronize();
- #endif
+-          entry.present.presenter->synchronize();
+-#endif
+-
+-          // NV-DXVK start: Reflex present end
+-          // Note: Only insert Reflex Present markers around the Presenter's present call if requested.
+-          if (insertReflexPresentMarkers) {
+-            reflex.endPresentation(cachedReflexFrameId);
+-          }
+-          // NV-DXVK end
  
-@@ -231,8 +231,8 @@ namespace dxvk {
+           m_currentFrameInterpolationData.reset();
+ 
+@@ -231,8 +181,8 @@ namespace dxvk {
        }
  
        if (entry.status)
@@ -2090,8 +4541,34 @@ index be79f3a5f..b948cd8c4 100644
          if (status != VK_EVENT_SET) {
            entry.status->result = status;
          }
+@@ -248,24 +198,7 @@ namespace dxvk {
+         Logger::err(str::format("DxvkSubmissionQueue: Command submission failed: ", status));
+         m_lastError = status;
+         
+-        if (m_device->config().enableAftermath) {
+-          // Stall the pending exception until aftermath has finished writing (or hits some error)
+-          uint32_t counter = 0;
+-          GFSDK_Aftermath_CrashDump_Status aftermathStatus = GFSDK_Aftermath_CrashDump_Status_NotStarted; 
+-          
+-          static const uint32_t kTimeoutPreventionLimit = 5000;
+-          
+-          while (counter < kTimeoutPreventionLimit) {
+-            GFSDK_Aftermath_GetCrashDumpStatus(&aftermathStatus);
+-
+-            if (aftermathStatus == GFSDK_Aftermath_CrashDump_Status_Finished || aftermathStatus == GFSDK_Aftermath_CrashDump_Status_Unknown)
+-              break; // Our dump was written
+-
+-            static const uint32_t kTimeoutPerTry = 100;
+-            Sleep(kTimeoutPerTry);
+-            counter += kTimeoutPerTry;
+-          }
+-        }
++        // [RASTER REMIX] Aftermath crash dump code removed
+         m_device->waitForIdle();
+       }
+ 
 diff --git a/src/dxvk/dxvk_queue.h b/src/dxvk/dxvk_queue.h
-index 9ab4dc531..60e66d207 100644
+index 9ab4dc531..64523e96e 100644
 --- a/src/dxvk/dxvk_queue.h
 +++ b/src/dxvk/dxvk_queue.h
 @@ -9,7 +9,6 @@
@@ -2111,25 +4588,61 @@ index 9ab4dc531..60e66d207 100644
      // requirements.
      bool                insertReflexPresentMarkers;
      // Represents the acquired presenter image index at the time of image presentation for usage in presentation submission.
-@@ -63,7 +62,7 @@ namespace dxvk {
+@@ -63,38 +62,11 @@ namespace dxvk {
    };
  
  
 -  // NV-DXVK start: DLFG integration
-+// [STUBBED BY GEMINI]   // NV-DXVK start: DLFG integration
+-  /**
+-   * \brief Frame interpolation info
+-   *
+-   * Stores parameters used to run frame
+-   * interpolation in the submit queue at present time.
+-   */
++  // [RASTER REMIX] Minimal stub — DLFG/RtCamera not available  
+   struct DxvkFrameInterpolationInfo {
+-    uint32_t          frameId;
+-    RtCamera          camera;
+-    Rc<DxvkImageView> motionVectors;
+-    VkImageLayout     motionVectorsLayout;
+-    Rc<DxvkImageView> depth;
+-    VkImageLayout     depthLayout;
+-    bool              resetHistory;
+-    // number of requested interpolated frames; must be at least 1, actual count may be lower depending on hardware support for MFG
+-    uint32_t          interpolatedFrameCount = 0;
+-    
+-    bool valid() const {
+-      return motionVectors.ptr() &&
+-        depth.ptr() &&
+-        interpolatedFrameCount > 0;
+-    }
+-
+-    void reset() {
+-      motionVectors = nullptr;
+-      depth = nullptr;
+-      resetHistory = false;
+-      interpolatedFrameCount = 0;
+-    }
++    bool valid() const { return false; }
++    void reset() {}
+   };
+-  // NV-DXVK end
+ 
    /**
-    * \brief Frame interpolation info
-    *
-@@ -103,7 +102,7 @@ namespace dxvk {
+    * \brief Submission queue entry
+@@ -103,10 +75,7 @@ namespace dxvk {
      DxvkSubmitStatus*   status;
      DxvkSubmitInfo      submit;
      DxvkPresentInfo     present;
 -    // NV-DXVK start: DLFG integration
-+// [STUBBED BY GEMINI]     // NV-DXVK start: DLFG integration
-     // sent down to stash frame interpolation parameters before present
-     DxvkFrameInterpolationInfo frameInterpolation;
-     // NV-DXVK end
-@@ -177,7 +176,7 @@ namespace dxvk {
+-    // sent down to stash frame interpolation parameters before present
+-    DxvkFrameInterpolationInfo frameInterpolation;
+-    // NV-DXVK end
++    DxvkFrameInterpolationInfo frameInterpolation; // [RASTER REMIX] Stub, always invalid
+   };
+ 
+   /**
+@@ -177,7 +146,7 @@ namespace dxvk {
              DxvkPresentInfo     presentInfo,
              DxvkSubmitStatus*   status);
  
@@ -2138,15 +4651,41 @@ index 9ab4dc531..60e66d207 100644
      /**
       * \brief Set up frame interpolation parameters for next present
       *
-@@ -279,7 +278,7 @@ namespace dxvk {
+@@ -186,20 +155,7 @@ namespace dxvk {
+      * If not called on a given frame, or called with an invalid input,
+      * frame interpolation won't be done.
+      */
+-    void setupFrameInterpolation(
+-      DxvkFrameInterpolationInfo frameInterpolationInfo);
+-
+-    /**
+-     * \brief Checks if the next present will trigger frame interpolation
+-     * \returns true if frame interpolation is set up for the current frame
+-     */
+-    //bool frameInterpolationOnNextPresent();
+-    
+-    /**
+-     * \brief Does a busy-wait in the current thread
+-     */
+-    //void threadWaitUs(int64_t us);
+-    // NV-DXVK end
++    // RASTER REMIX: setupFrameInterpolation removed (DLFG not available)
+ 
+     /**
+      * \brief Synchronizes with one queue submission
+@@ -279,11 +235,10 @@ namespace dxvk {
  
      void finishCmdLists();
      
 -    // NV-DXVK start: DLFG integration
-+// [STUBBED BY GEMINI]     // NV-DXVK start: DLFG integration
++    // [RASTER REMIX] Stub frame interpolation data (always invalid)
      DxvkFrameInterpolationInfo m_currentFrameInterpolationData;
      // stash a reference to the last presenter object in case we need to flush
      // this is reset when we flush
+     Rc<vk::Presenter> m_lastPresenter = nullptr;
+-    // NV-DXVK end
+   };
+ }
 diff --git a/src/dxvk/dxvk_raytracing.cpp b/src/dxvk/dxvk_raytracing.cpp
 deleted file mode 100644
 index 99d2751f7..000000000
@@ -2793,8 +5332,70 @@ index 8e88008bf..000000000
 -  };
 -}
 \ No newline at end of file
+diff --git a/src/dxvk/dxvk_scoped_annotation.cpp b/src/dxvk/dxvk_scoped_annotation.cpp
+index c609e96cc..f87faf0ef 100644
+--- a/src/dxvk/dxvk_scoped_annotation.cpp
++++ b/src/dxvk/dxvk_scoped_annotation.cpp
+@@ -19,7 +19,6 @@
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+-#pragma once
+ 
+ #include "dxvk_scoped_annotation.h"
+ #include "dxvk_context.h"
+diff --git a/src/dxvk/dxvk_state_cache.cpp b/src/dxvk/dxvk_state_cache.cpp
+index 6b19874dc..341e4e57e 100644
+--- a/src/dxvk/dxvk_state_cache.cpp
++++ b/src/dxvk/dxvk_state_cache.cpp
+@@ -372,30 +372,7 @@ namespace dxvk {
+       m_workerCond.notify_all();
+   }
+ 
+-  // NV-DXVK start: compile raytracing shaders on shader compilation threads
+-  void DxvkStateCache::registerRaytracingShaders(
+-    const DxvkRaytracingPipelineShaders& shaders) {
+-    if (shaders.groups.empty())
+-      return;
+-
+-    WorkerItem item;
+-    item.rt = shaders;
+-    item.isRemixShader = true;
+-
+-    std::unique_lock<dxvk::mutex> workerLock(m_workerLock);
+-
+-    // Do not compile same shader multiple times
+-    if (m_workerItemsInFlight.count(item.hash()) == 0) {
+-      assert(item.isRemixShader);
+-      ++m_workerCompilingRemixShaders;
+-
+-      m_workerQueue.push(item);
+-      m_workerItemsInFlight.insert(item.hash());
+-
+-      m_workerCond.notify_all();
+-    }
+-  }
+-  // NV-DXVK end
++  // [RASTER REMIX] registerRaytracingShaders removed
+ 
+   void DxvkStateCache::stopWorkerThreads() {
+     { std::lock_guard<dxvk::mutex> workerLock(m_workerLock);
+@@ -459,12 +436,7 @@ namespace dxvk {
+     key.fs  = getShaderKey(item.gp.fs);
+     key.cs  = getShaderKey(item.cp.cs);
+ 
+-    if (!item.rt.groups.empty()) {
+-      // Compile Ray Tracing Pipelines
+-
+-      auto pipeline = m_pipeManager->createRaytracingPipeline(item.rt);
+-      pipeline->compilePipeline();
+-    } else if (item.cp.cs == nullptr) {
++    if (item.cp.cs == nullptr) {
+       // Compile Graphics Pipelines
+ 
+       auto pipeline = m_pipeManager->createGraphicsPipeline(item.gp);
 diff --git a/src/dxvk/dxvk_state_cache.h b/src/dxvk/dxvk_state_cache.h
-index 73c075144..10c772e89 100644
+index 73c075144..82636e580 100644
 --- a/src/dxvk/dxvk_state_cache.h
 +++ b/src/dxvk/dxvk_state_cache.h
 @@ -31,7 +31,6 @@
@@ -2805,6 +5406,48 @@ index 73c075144..10c772e89 100644
  // NV-DXVK end
  
  namespace dxvk {
+@@ -98,18 +97,7 @@ namespace dxvk {
+       bool                                  isRemixShader = false);
+ // NV-DXVK end
+ 
+-    // NV-DXVK start: compile raytracing shaders on shader compilation threads
+-    /**
+-     * \brief Registers a set of raytracing shaders
+-     * 
+-     * Makes the shader available to the pipeline
+-     * compiler, and starts compiling all pipelines
+-     * for which all shaders become available.
+-     * \param [in] shaders The shaders to add
+-     */
+-    void registerRaytracingShaders(
+-      const DxvkRaytracingPipelineShaders& shaders);
+-    // NV-DXVK end
++    // RASTER REMIX: registerRaytracingShaders removed
+     
+     /**
+      * \brief Explicitly stops worker threads
+@@ -138,19 +126,14 @@ namespace dxvk {
+       DxvkGraphicsPipelineShaders gp;
+       DxvkComputePipelineShaders  cp;
+ 
+-      // NV-DXVK start: compile rt shaders on shader compilation threads
+-      DxvkRaytracingPipelineShaders rt;
+-      // NV-DXVK end
++      // RASTER REMIX: DxvkRaytracingPipelineShaders rt removed
+       // NV-DXVK start
+       bool isRemixShader = false;
+       // NV-DXVK end
+ 
+       // NV-DXVK start: do not compile same shader multiple times
+       size_t hash() const {
+-        // raytracing shader group hash is NOT guaranteed to be zero
+-        if (!rt.groups.empty()) {
+-          return rt.hash();
+-        }
++        // RASTER REMIX: rt.hash() removed
+         // note that one of these is guaranteed to be zero
+         return cp.hash() ^ gp.hash();
+       }
 diff --git a/src/dxvk/hud/dxvk_hud.h b/src/dxvk/hud/dxvk_hud.h
 index 475e91c06..af947b581 100644
 --- a/src/dxvk/hud/dxvk_hud.h
@@ -2819,7 +5462,7 @@ index 475e91c06..af947b581 100644
      // NV-DXVK end
      
 diff --git a/src/dxvk/hud/dxvk_hud_item.cpp b/src/dxvk/hud/dxvk_hud_item.cpp
-index d3aa33507..cdc6b1932 100644
+index d3aa33507..f7ff63f89 100644
 --- a/src/dxvk/hud/dxvk_hud_item.cpp
 +++ b/src/dxvk/hud/dxvk_hud_item.cpp
 @@ -3,8 +3,6 @@
@@ -2840,36 +5483,53 @@ index d3aa33507..cdc6b1932 100644
    void HudItemSet::update(uint32_t presentCount) {
      auto time = dxvk::high_resolution_clock::now();
  
-@@ -191,24 +189,24 @@ namespace dxvk::hud {
+@@ -184,38 +182,19 @@ namespace dxvk::hud {
+   HudPos HudRaytracingModeItem::render(
+     HudRenderer&      renderer,
+     HudPos            position) {
++    // [RASTER REMIX] Always show raster mode
+     position.y += 16.0f;
+ 
+     renderer.drawText(16.0f,
+       { position.x, position.y },
        { 0.25f, 0.5f, 0.25f, 1.0f },
-       "Raytracing Mode: ");
-     
+-      "Raytracing Mode: ");
+-    
 -    if (RtxOptions::enableRaytracing()) {
-+// [STUBBED BY GEMINI]     if (RtxOptions::enableRaytracing()) {
-       position.y += 16.0f;
-       renderer.drawText(14.0f,
-         { position.x, position.y },
-         { 1.0f, 1.0f, 1.0f, 1.0f },
+-      position.y += 16.0f;
+-      renderer.drawText(14.0f,
+-        { position.x, position.y },
+-        { 1.0f, 1.0f, 1.0f, 1.0f },
 -        str::format("GBuffer [", DxvkPathtracerGbuffer::raytraceModeToString(RtxOptions::renderPassGBufferRaytraceMode()), "]"));
-+// [STUBBED BY GEMINI]         str::format("GBuffer [", DxvkPathtracerGbuffer::raytraceModeToString(RtxOptions::renderPassGBufferRaytraceMode()), "]"));
++      "Rendering Mode: ");
  
-       position.y += 16.0f;
-       renderer.drawText(14.0f,
-         { position.x, position.y },
-         { 1.0f, 1.0f, 1.0f, 1.0f },
+-      position.y += 16.0f;
+-      renderer.drawText(14.0f,
+-        { position.x, position.y },
+-        { 1.0f, 1.0f, 1.0f, 1.0f },
 -        str::format("Integrate Direct [", DxvkPathtracerIntegrateDirect::raytraceModeToString(RtxOptions::renderPassIntegrateDirectRaytraceMode()), "]"));
-+// [STUBBED BY GEMINI]         str::format("Integrate Direct [", DxvkPathtracerIntegrateDirect::raytraceModeToString(RtxOptions::renderPassIntegrateDirectRaytraceMode()), "]"));
- 
-       position.y += 16.0f;
-       renderer.drawText(14.0f,
-         { position.x, position.y },
-         { 1.0f, 1.0f, 1.0f, 1.0f },
+-
+-      position.y += 16.0f;
+-      renderer.drawText(14.0f,
+-        { position.x, position.y },
+-        { 1.0f, 1.0f, 1.0f, 1.0f },
 -        str::format("Integrate Indirect [", DxvkPathtracerIntegrateIndirect::raytraceModeToString(RtxOptions::renderPassIntegrateIndirectRaytraceMode()), "]"));
-+// [STUBBED BY GEMINI]         str::format("Integrate Indirect [", DxvkPathtracerIntegrateIndirect::raytraceModeToString(RtxOptions::renderPassIntegrateIndirectRaytraceMode()), "]"));
-     } else {
-       position.y += 16.0f;
-       renderer.drawText(14.0f,
-@@ -225,14 +223,14 @@ namespace dxvk::hud {
+-    } else {
+-      position.y += 16.0f;
+-      renderer.drawText(14.0f,
+-        { position.x, position.y },
+-        { 1.0f, 1.0f, 1.0f, 1.0f },
+-        "RTX-Off (Raster)");
+-    }
++    position.y += 16.0f;
++    renderer.drawText(14.0f,
++      { position.x, position.y },
++      { 1.0f, 1.0f, 1.0f, 1.0f },
++      "Raster (PBR)");
+ 
+     position.y += 16.0f;
+ 
+@@ -225,14 +204,14 @@ namespace dxvk::hud {
    HudFpsItem::HudFpsItem() { }
    HudFpsItem::~HudFpsItem() { }
  
@@ -2886,15 +5546,42 @@ index d3aa33507..cdc6b1932 100644
      m_frameCount += m_presentCount;
      // NV-DXVK end
  
-@@ -879,7 +877,7 @@ namespace dxvk::hud {
+@@ -879,33 +858,13 @@ namespace dxvk::hud {
        position.y += 16.0f;
      }
  
 -    if (RtxTextureManager::getShowProgress()) {
-+// [STUBBED BY GEMINI]     if (RtxTextureManager::getShowProgress()) {
-       constexpr size_t kNumTexPerLine = 64;
-       int64_t numTexInFlight = counters.getCtr(DxvkStatCounter::RtxTexturesInFlight);
+-      constexpr size_t kNumTexPerLine = 64;
+-      int64_t numTexInFlight = counters.getCtr(DxvkStatCounter::RtxTexturesInFlight);
+-
+-      std::string progress(std::min<size_t>(kNumTexPerLine, numTexInFlight), '*');
+-
+-      while (numTexInFlight > 0) {
+-        if (progress.length() > numTexInFlight) {
+-          progress.resize(numTexInFlight);
+-        }
+-
+-        position.y += 8.0f;
+-        renderer.drawText(16.0f,
+-                          { position.x, position.y },
+-                          { 0.0f, 1.0f, 0.0f, 1.0f },
+-                          progress);
+-        position.y += 16.0f;
+-
+-        numTexInFlight -= kNumTexPerLine;
+-      }
+-    }
++    // [RASTER REMIX] RtxTextureManager::getShowProgress() removed
  
+     return position;
+   }
+ 
+   HudPos HudScrollingLineItem::render(HudRenderer& renderer, HudPos position) {
+-    if (m_linePosition >= renderer.surfaceSize().width)
++    if (static_cast<uint32_t>(m_linePosition) >= renderer.surfaceSize().width)
+       m_linePosition = 0;
+ 
+     const HudNormColor color = { 0xff, 0xff, 0x80, 0xff };
 diff --git a/src/dxvk/hud/dxvk_hud_item.h b/src/dxvk/hud/dxvk_hud_item.h
 index 7f6d2f9ba..e58c815c4 100644
 --- a/src/dxvk/hud/dxvk_hud_item.h
@@ -4876,50 +7563,319 @@ index 0d3e658bb..82e170407 100644
        } else {
          ImGui::Text("The game doesn't set up the View Matrix, \nAnti-Culling is disabled to prevent visual corruption.");
 diff --git a/src/dxvk/imgui/dxvk_imgui.h b/src/dxvk/imgui/dxvk_imgui.h
-index 14ab155ff..0c6c2fe95 100644
+index 14ab155ff..2b8a25c83 100644
 --- a/src/dxvk/imgui/dxvk_imgui.h
 +++ b/src/dxvk/imgui/dxvk_imgui.h
-@@ -37,7 +37,6 @@
- #include "../dxvk_bind_mask.h"
- #include "../dxvk_graphics_state.h"
- #include "../dxvk_constant_state.h"
+@@ -20,289 +20,42 @@
+ * DEALINGS IN THE SOFTWARE.
+ */
+ 
++// RASTER REMIX: Minimal stub replacing the full RTX ImGUI dev overlay.
++// Provides only the interface consumed by d3d9 code (AddTexture, ReleaseTexture, etc.)
++
+ #pragma once
+ 
+-#include "imgui.h"
++#include <cstdint>
+ 
+-#include <chrono>
+-#define WIN32_LEAN_AND_MEAN 
++#define WIN32_LEAN_AND_MEAN
+ #include <windows.h>
+ 
+ #include "../util/rc/util_rc.h"
+ #include "../util/rc/util_rc_ptr.h"
+-#include "../util/util_keybind.h"
+-
+ #include "../dxvk_format.h"
+-#include "../dxvk_util.h"
+-#include "../dxvk_bind_mask.h"
+-#include "../dxvk_graphics_state.h"
+-#include "../dxvk_constant_state.h"
 -#include "../rtx_render/rtx_options.h"
+-
+-struct ImPlotContext;
  
- struct ImPlotContext;
+ namespace dxvk {
+-  class ImGuiAbout;
+-  class ImGuiSplash;
+-  class ImGuiCapture;
+   class DxvkDevice;
+   class DxvkContext;
+-  class RtxGraphGUI;
++  class DxvkImageView;
  
-@@ -117,12 +116,12 @@ namespace dxvk {
-     };
-     template<Tabs tab>
-     void openTab() {
+-  /**
+-   * \brief DXVK ImGUI
+-   * 
+-   * GUI for manipulating settings at runtime
+-   */
+-  class ImGUI {
+-    
++  class ImGUI : public RcObject {
+   public:
+-    // if set for a texture category, only textures with that flag can be set to that category.
+-    static const uint32_t kTextureFlagsNone = 0; 
+-    // Use this for regular textures
+-    static const uint32_t kTextureFlagsDefault = 1 << 0; 
+-    // Use this for render target textures
+-    static const uint32_t kTextureFlagsRenderTarget = 1 << 1; 
+-    
+-    enum class Theme {
+-      Toolkit,
+-      Legacy,
+-      Nvidia
+-    };
+-
+-    ImGUI(DxvkDevice* device);
+-    ~ImGUI();
+-
+-    bool isInit() const {
+-      return m_init;
+-    }
+-    
+-    /**
+-     * \brief Handle windows messages
+-     * 
+-     * see: https://docs.microsoft.com/en-us/previous-versions/windows/desktop/legacy/ms633573(v=vs.85)
+-     */
+-    void wndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+-
+-    /**
+-     * \brief Render ImGUI
+-     * 
+-     * Renders the ImGUI to the given context.
+-     * \param [in] hwnd Window currently being drawn into
+-     * \param [in] ctx Device context
+-     * \param [in] surfaceSize Image size, in pixels
+-     * \param [in] vsync swapchain vsync enabled
+-     */
+-    void render(
+-            const HWND hwnd,
+-            const Rc<DxvkContext>&  ctx,
+-            VkSurfaceFormatKHR surfaceFormat,
+-            VkExtent2D         surfaceSize,
+-            bool               vsync);
+-    
+-    static void AddTexture(const XXH64_hash_t hash, const Rc<DxvkImageView>& imageView, uint32_t textureFeatureFlags);
+-    static void ReleaseTexture(const XXH64_hash_t hash);
+-    static bool checkHotkeyState(const VirtualKeys& virtKeys, const bool allowContinuousPress = false);
+-    static void SetFogStates(const fast_unordered_cache<FogState>& fogStates, XXH64_hash_t usedFogHash);
+-
+-    void switchMenu(UIType type, bool force = false);
+-    
+-    enum Tabs {
+-      kTab_Rendering = 0,
+-      kTab_Setup,
+-      kTab_Enhancements,
+-      kTab_About,
+-      kTab_Development,
+-      kTab_Count
+-    };
+-    template<Tabs tab>
+-    void openTab() {
 -      RtxOptions::showUI.setDeferred(UIType::Advanced);
-+// [STUBBED BY GEMINI]       RtxOptions::showUI.setDeferred(UIType::Advanced);
-       triggerTab(tab);
-     }
-     template<Tabs tab>
-     bool isTabOpen() const {
+-      triggerTab(tab);
+-    }
+-    template<Tabs tab>
+-    bool isTabOpen() const {
 -      if(RtxOptions::showUI() != UIType::Advanced) {
-+// [STUBBED BY GEMINI]       if(RtxOptions::showUI() != UIType::Advanced) {
-         return false;
-       } else {
-         return m_curTab == tab;
-@@ -245,7 +244,7 @@ namespace dxvk {
- 
-     void showRenderingSettings(const Rc<DxvkContext>& ctx);
- 
+-        return false;
+-      } else {
+-        return m_curTab == tab;
+-      }
+-    }
+-
+-  private:
+-    enum class ShaderMessageType {
+-      None,
+-      Ok,
+-      Error
+-    };
+-
+-    DxvkDevice*           m_device;
+-    
+-    Rc<DxvkImage>         m_fontTexture;
+-    Rc<DxvkImageView>     m_fontTextureView;
+-    DxvkRasterizerState   m_rsState;
+-    DxvkBlendMode         m_blendMode;
+-    VkDescriptorPool      m_imguiPool;
+-    Rc<ImGuiAbout>        m_about;
+-    Rc<ImGuiSplash>       m_splash;
+-    Rc<ImGuiCapture>      m_capture;
+-    Rc<class GameOverlay>  m_overlayWin;
+-
+-    // Note: May be NULL until the font loads, needs to be checked before use.
+-    ImFont*               m_regularFont = nullptr;
+-    // Note: May be NULL until the font loads, needs to be checked before use.
+-    ImFont*               m_largeFont = nullptr;
+-
+-    ImGuiContext*         m_context;
+-    ImPlotContext*        m_plotContext;
+-
+-    HWND                  m_gameHwnd;
+-    bool                  m_init = false;
+-    bool                  m_prevCursorVisible = false;
+-
+-
+-    // Width of developer menu in regular mode
+-    float                 m_regularWindowWidth = 450.0f;
+-    // Width of item+label widgets in regular mode (developer menu)
+-    float                 m_regularWindowWidgetWidth = 200.f;
+-
+-    // Width of developer menu in large mode
+-    float                 m_largeWindowWidth = 670.0f;
+-    // Width of item+label widgets in large mode (developer menu)
+-    float                 m_largeWindowWidgetWidth = 364.0f;
+-
+-    float                 m_regularUserWindowWidth = 600.f;
+-    float                 m_regularUserWindowHeight = 720.f;
+-    // Width of item+label widgets in regular mode (user menu)
+-    float                 m_regularUserWindowWidgetWidth = 140.f;
+-
+-    float                 m_largeUserWindowWidth = 776.0f;
+-    float                 m_largeUserWindowHeight = 926.0f;
+-    // Width of item+label widgets in large mode
+-    float                 m_largeUserWindowWidgeWidth = 252.f;
+-
+-    bool                  m_windowOnRight = true;
+-    bool                  m_pendingUIOptionsScroll = false;
+-
+-
+-    float                 m_windowWidth = m_regularWindowWidth;
+-    float                 m_userWindowWidth = m_regularUserWindowWidth;
+-    float                 m_userWindowHeight = m_regularUserWindowHeight;
+-
+-    const char*           m_userGraphicsWindowTitle = "User Graphics Settings";
+-    bool                  m_userGraphicsSettingChanged = false;
+-    bool m_hudMessageTimeReset = false;
+-    std::chrono::time_point<std::chrono::steady_clock> m_hudMessageStartTime;
+-    bool m_reflexRangesInitialized = false;
+-    float m_currentGameToRenderDurationMin;
+-    float m_currentGameToRenderDurationMax;
+-    float m_currentCombinedDurationMin;
+-    float m_currentCombinedDurationMax;
+-    float m_reflexLatencyStatsWindowWidth = 500.f;
+-    float m_reflexLatencyStatsWindowHeight = 650.f;
+-    bool m_reflexLatencyStatsOpen = false;
+-    bool m_lastRenderVsyncStatus = false;
+-    std::unique_ptr<RtxGraphGUI> m_graphGUI;
+-
+-    static constexpr const char* tabNames[] = { "Rendering", "Game Setup", "Enhancements", "About" , "Dev Settings"};
+-    Tabs m_curTab = kTab_Count;
+-    Tabs m_triggerTab = kTab_Count;
+-    void triggerTab(const Tabs tab) {
+-      m_triggerTab = tab;
+-    }
+-
+-    void update(const Rc<DxvkContext>& ctx);
+-
+-    void updateQuickActions(const Rc<DxvkContext>& ctx);
+-
+-    void showDebugVisualizations(const Rc<DxvkContext>& ctx);
+-
+-    void showMainMenu(const Rc<DxvkContext>& ctx);
+-
+-    void showUserMenu(const Rc<DxvkContext>& ctx);
+-    void showUserGeneralSettings(
+-      const Rc<DxvkContext>& ctx,
+-      const int subItemWidth,
+-      const int subItemIndent);
+-    void showUserRenderingSettings(
+-      const Rc<DxvkContext>& ctx,
+-      const int subItemWidth,
+-      const int subItemIndent);
+-    void showUserContentSettings(
+-      const Rc<DxvkContext>& ctx,
+-      const int subItemWidth,
+-      const int subItemIndent);
+-
+-    void showHudMessages(const Rc<DxvkContext>& ctx);
+-
+-    void setupRendererState(
+-      const Rc<DxvkContext>&  ctx,
+-            VkSurfaceFormatKHR surfaceFormat,
+-            VkExtent2D        surfaceSize);
+-
+-    void resetRendererState(
+-      const Rc<DxvkContext>&  ctx);
+-
+-    void showRenderingSettings(const Rc<DxvkContext>& ctx);
+-
 -    void showDLFGOptions(const Rc<DxvkContext>& ctx);
-+// [STUBBED BY GEMINI]     void showDLFGOptions(const Rc<DxvkContext>& ctx);
-     void showReflexOptions(const Rc<DxvkContext>& ctx, bool displayStatsWindowToggle);
-     void showReflexLatencyStats();
- 
-@@ -275,7 +274,7 @@ namespace dxvk {
-     // Custom style
-     void setupStyle(ImGuiStyle* dst = NULL);
- 
+-    void showReflexOptions(const Rc<DxvkContext>& ctx, bool displayStatsWindowToggle);
+-    void showReflexLatencyStats();
+-
+-    void showSetupWindow(const Rc<DxvkContext>& ctx);
+-
+-    void showMaterialOptions();
+-
+-    void showEnhancementsWindow(const Rc<DxvkContext>& ctx);
+-    void showEnhancementsTab(const Rc<DxvkContext>& ctx);
+-    void showDevelopmentSettings(const Rc<DxvkContext>& ctx);
+-
+-    // helper to display a configurable grid of all textures currently hooked to ImGUI
+-    void showTextureSelectionGrid(const Rc<DxvkContext>& ctx, const char* uniqueId, const uint32_t texturesPerRow, const float thumbnailSize, const float minChildHeight = 600.0f);
+-
+-    void createFontsTexture(const Rc<DxvkContext>& ctx);
+-
+-    // Adjust Alpha of currently set background color
+-    void adjustStyleBackgroundAlpha(const float& alpha, ImGuiStyle* dst = NULL);
+-    // Adjusts window widths based on various UI settings
+-    void updateWindowWidths();
+-    // Sets default remix UI theme
+-    void setLegacyStyle(ImGuiStyle* dst);
+-    // Sets toolkit inspired UI theme
+-    void setToolkitStyle(ImGuiStyle* dst);
+-    // Sets Nvidia inspired UI theme
+-    void setNvidiaStyle(ImGuiStyle* dst);
+-    // Custom style
+-    void setupStyle(ImGuiStyle* dst = NULL);
+-
 -    void showVsyncOptions(bool enableDLFGGuard);
-+// [STUBBED BY GEMINI]     void showVsyncOptions(bool enableDLFGGuard);
-     void processHotkeys();
+-    void processHotkeys();
+-
+-    void showMemoryStats() const;
+-    bool showRayReconstructionEnable(bool supportsRR);
++    static const uint32_t kTextureFlagsNone = 0;
++    static const uint32_t kTextureFlagsDefault = 1 << 0;
++    static const uint32_t kTextureFlagsRenderTarget = 1 << 1;
  
-     void showMemoryStats() const;
+-    RTX_OPTION("rtx.gui", bool, showLegacyTextureGui, false, "A setting to toggle the old texture selection GUI, where each texture category is represented as its own list.");
+-    RTX_OPTION("rtx.gui", bool, legacyTextureGuiShowAssignedOnly, false, "A setting to show only the textures in a category that are assigned to it (Unassigned textures are found in the new \"Uncategorized\" list at the top).\nRequires: \'Split Texture Category List\' option to be enabled.");
+-    RTX_OPTION("rtx.gui", std::uint32_t, hudMessageAnimatedDotDurationMilliseconds, 1000, "A duration in milliseconds between each dot in the animated dot sequence for HUD messages. Must be greater than 0.\nThese dots help indicate progress is happening to the user with a bit of animation which can be configured to animate at whatever speed is desired.");
+-    RTX_OPTION_ARGS("rtx.gui", float, reflexStatRangeInterpolationRate, 0.05f, "A value controlling the interpolation rate applied to the Reflex stat graph ranges for smoother visualization.",
+-                    args.minValue = 0.0f, args.maxValue = 1.0f);
+-    RTX_OPTION_ARGS("rtx.gui", float, reflexStatRangePaddingRatio, 0.05f, "A value specifying the amount of padding applied to the Reflex stat graph ranges as a ratio to the calculated range.",
+-                    args.minValue = 0.0f);
++    ImGUI(DxvkDevice*) {}
++    ~ImGUI() {}
+ 
+-    public: static void onThemeChange(DxvkDevice* device);
+-    public: static void onBackgroundAlphaChange(DxvkDevice* device);
+-    RTX_OPTION_ARGS("rtx.gui", bool, compactGui, false, "A setting to toggle between compact and spacious GUI modes.", args.onChangeCallback = &onThemeChange);
+-    RTX_OPTION_ARGS("rtx.gui", float, backgroundAlpha, 0.90f, "A value controlling the alpha of the GUI background.",
+-       args.onChangeCallback = &onBackgroundAlphaChange, args.minValue = 0.0f, args.maxValue = 1.0f);
+-    RTX_OPTION_ARGS("rtx.gui", Theme, themeGui, Theme::Toolkit, "A setting controlling the active GUI theme.", args.onChangeCallback = &onThemeChange);
+-    RTX_OPTION_ARGS("rtx.gui", bool, largeUiMode, false, "Toggles between Large and Regular GUI Scale Modes.", args.onChangeCallback = &onThemeChange);
++    bool isInit() const { return false; }
+ 
+-    private:
++    void wndProcHandler(HWND, UINT, WPARAM, LPARAM) {}
+ 
+-    void onCloseMenus();
+-    void onOpenMenus();
+-    void freeUnusedMemory();
++    void render(const HWND, const Rc<DxvkContext>&,
++                VkSurfaceFormatKHR, VkExtent2D, bool) {}
+ 
++    static void AddTexture(const XXH64_hash_t, const Rc<DxvkImageView>&, uint32_t) {}
++    static void ReleaseTexture(const XXH64_hash_t) {}
+   };
+-  
+-}
+\ No newline at end of file
++}
 diff --git a/src/dxvk/imgui/dxvk_imgui_about.cpp b/src/dxvk/imgui/dxvk_imgui_about.cpp
 index 23080f7c1..38418a3a0 100644
 --- a/src/dxvk/imgui/dxvk_imgui_about.cpp
@@ -5151,8 +8107,20 @@ index 3d8947439..64ce7f8aa 100644
          std::string message = str::format("Welcome to RTX Remix. Use ", keyBindDescriptor, " to access the RTX Remix Menu and change settings. Closing in ", clampedSecondsRemaining);
          ImGui::Text(message.c_str());
        }
+diff --git a/src/dxvk/imgui/implot_items.cpp b/src/dxvk/imgui/implot_items.cpp
+index f38186c77..831ad8d52 100644
+--- a/src/dxvk/imgui/implot_items.cpp
++++ b/src/dxvk/imgui/implot_items.cpp
+@@ -23,6 +23,7 @@
+ // ImPlot v0.14
+ 
+ #define IMGUI_DEFINE_MATH_OPERATORS
++#include <cstdint>
+ #include "implot.h"
+ #include "implot_internal.h"
+ 
 diff --git a/src/dxvk/meson.build b/src/dxvk/meson.build
-index e229597c3..f4ad63a81 100644
+index e229597c3..03462ba8a 100644
 --- a/src/dxvk/meson.build
 +++ b/src/dxvk/meson.build
 @@ -1,4 +1,6 @@
@@ -5371,7 +8339,38 @@ index e229597c3..f4ad63a81 100644
  
    'platform/dxvk_win32_exts.cpp',
    
-@@ -412,54 +224,26 @@ dxvk_src = files([
+@@ -378,19 +190,20 @@ dxvk_src = files([
+   'hud/dxvk_hud_font.h',
+   'hud/dxvk_hud_item.h',
+   'hud/dxvk_hud_renderer.h',
+-  
+-  'imgui/dxvk_imgui.cpp',
+-  'imgui/dxvk_imgui.h',
+-  'imgui/dxvk_imgui_about.cpp',
+-  'imgui/dxvk_imgui_about.h',
+-  'imgui/dxvk_imgui_capture.cpp',
+-  'imgui/dxvk_imgui_capture.h',
+-  'imgui/dxvk_imgui_splash.cpp',
+-  'imgui/dxvk_imgui_splash.h',
++
++  # [RASTER REMIX] ImGui files removed — dev GUI depends on RTX options/RT pipeline
++  #'imgui/dxvk_imgui.cpp',
++  #'imgui/dxvk_imgui.h',
++  #'imgui/dxvk_imgui_about.cpp',
++  #'imgui/dxvk_imgui_about.h',
++  #'imgui/dxvk_imgui_capture.cpp',
++  #'imgui/dxvk_imgui_capture.h',
++  #'imgui/dxvk_imgui_splash.cpp',
++  #'imgui/dxvk_imgui_splash.h',
+   'imgui/imconfig.h',
+   'imgui/imgui.cpp',
+   'imgui/imgui.h',
+-  'imgui/imgui_demo.cpp',
++  #'imgui/imgui_demo.cpp',
+   'imgui/imgui_draw.cpp',
+   'imgui/imgui_impl_vulkan.cpp',
+   'imgui/imgui_impl_vulkan.h',
+@@ -412,54 +225,26 @@ dxvk_src = files([
  
  thread_dep = dependency('threads')
  
@@ -5432,7 +8431,7 @@ index e229597c3..f4ad63a81 100644
  
  dxvk_embedded_data_files = files([
    '../../external/fonts/NVIDIASans/NVIDIASansMd.ttf',
-@@ -468,7 +252,7 @@ dxvk_embedded_data_files = files([
+@@ -468,7 +253,7 @@ dxvk_embedded_data_files = files([
  
  dxvk_generated_embedded_files = embedding_compiler.process(dxvk_embedded_data_files)
  
@@ -5441,7 +8440,7 @@ index e229597c3..f4ad63a81 100644
  
  if enable_rtxio
    dxvk_deps += rtxio_dep
-@@ -484,7 +268,7 @@ delayimp_dep = declare_dependency(
+@@ -484,7 +269,7 @@ delayimp_dep = declare_dependency(
  	dependencies : [ lib_delayimp])
  dxvk_deps += delayimp_dep
  
