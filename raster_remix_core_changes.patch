@@ -8107,6 +8107,19 @@ index 3d8947439..64ce7f8aa 100644
          std::string message = str::format("Welcome to RTX Remix. Use ", keyBindDescriptor, " to access the RTX Remix Menu and change settings. Closing in ", clampedSecondsRemaining);
          ImGui::Text(message.c_str());
        }
+diff --git a/src/dxvk/imgui/imgui.cpp b/src/dxvk/imgui/imgui.cpp
+index a24a42a7b..1476a6eea 100644
+--- a/src/dxvk/imgui/imgui.cpp
++++ b/src/dxvk/imgui/imgui.cpp
+@@ -849,7 +849,7 @@ CODE
+ #define NOMINMAX
+ #endif
+ #ifndef __MINGW32__
+-#include <Windows.h>        // _wfopen, OpenClipboard
++#include <windows.h>        // _wfopen, OpenClipboard
+ #else
+ #include <windows.h>
+ #endif
 diff --git a/src/dxvk/imgui/implot_items.cpp b/src/dxvk/imgui/implot_items.cpp
 index f38186c77..831ad8d52 100644
 --- a/src/dxvk/imgui/implot_items.cpp
@@ -92555,6 +92568,23 @@ index 9bc592bae..388e88e7d 100644
 -  };
 \ No newline at end of file
 +  };
+diff --git a/src/util/util_env.cpp b/src/util/util_env.cpp
+index b88e4920d..62bd935c0 100644
+--- a/src/util/util_env.cpp
++++ b/src/util/util_env.cpp
+@@ -28,10 +28,10 @@
+ 
+ #include "./com/com_include.h"
+ 
+-#include <Windows.h>
++#include <windows.h>
+ #include <stdio.h>
+ #include <tlhelp32.h>
+-#include <Psapi.h>
++#include <psapi.h>
+ #include <Shlwapi.h>
+ // NV-DXVK start
+ #include <set>
 diff --git a/src/util/util_env.h b/src/util/util_env.h
 index 0672f154d..1cafc4bad 100644
 --- a/src/util/util_env.h
