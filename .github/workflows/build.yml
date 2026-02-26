@@ -29,12 +29,22 @@ jobs:
       - name: Setup Build Environment
         run: |
           cd dxvk-remix
-          # Create fake directories for dependencies that we stripped
-          mkdir -p external/fonts/NVIDIASans external/fonts/RobotoMono external/aftermath/include external/omni_core_materials
+          # Create fake directories for dependencies that we stripped or bypassed
+          mkdir -p external/fonts/NVIDIASans external/fonts/RobotoMono 
+          mkdir -p external/aftermath/include 
+          mkdir -p external/omni_core_materials
+          mkdir -p external/nv_usd_Release/include/boost
+          mkdir -p external/nv_usd_Debug/include/boost
+          mkdir -p external/nvapi
+          mkdir -p external/reflex/inc
+          mkdir -p external/rtxio/include
+          mkdir -p external/slang
+          mkdir -p external/glslangvalidator
+          mkdir -p external/spirv_tools
+          
           touch external/fonts/NVIDIASans/NVIDIASansMd.ttf external/fonts/RobotoMono/RobotoMonoRg.ttf
           
           # Run meson setup using the win64 cross file
-          # Note: We use the modified meson.build already in the repo
           meson setup --cross-file build-win64.txt --buildtype release build
 
       - name: Compile
