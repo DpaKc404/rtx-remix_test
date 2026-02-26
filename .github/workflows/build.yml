@@ -25,6 +25,8 @@ jobs:
         run: |
           cd dxvk-remix
           git apply ../raster_remix_core_changes.patch
+          cp ../fake_xxd.py ./fake_xxd.py
+          chmod +x fake_xxd.py
 
       - name: Setup Build Environment
         run: |
