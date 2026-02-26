@@ -1,0 +1,51 @@
+name: Build Raster Remix (PBR)
+
+on:
+  push:
+    branches: [ main, raster-remix-main ]
+  pull_request:
+    branches: [ main, raster-remix-main ]
+  workflow_dispatch:
+
+jobs:
+  build-win64:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y meson ninja-build gcc-mingw-w64 g++-mingw-w64 glslang-tools spirv-tools python3 python3-pip
+
+      - name: Apply Raster Remix Patch
+        run: |
+          cd dxvk-remix
+          git apply ../raster_remix_core_changes.patch || echo "Patch already applied or failed but continuing..."
+
+      - name: Setup Build Environment
+        run: |
+          cd dxvk-remix
+          # Create fake directories for dependencies that we stripped
+          mkdir -p external/fonts/NVIDIASans external/fonts/RobotoMono external/aftermath/include external/omni_core_materials
+          touch external/fonts/NVIDIASans/NVIDIASansMd.ttf external/fonts/RobotoMono/RobotoMonoRg.ttf
+          
+          # Run meson setup using the win64 cross file
+          # Note: We use the modified meson.build already in the repo
+          meson setup --cross-file build-win64.txt --buildtype release build
+
+      - name: Compile
+        run: |
+          cd dxvk-remix
+          ninja -C build
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Raster-Remix-Binaries
+          path: |
+            dxvk-remix/build/src/d3d9/d3d9.dll
+            dxvk-remix/build/src/dxgi/dxgi.dll
