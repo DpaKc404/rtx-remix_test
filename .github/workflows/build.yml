@@ -57,10 +57,62 @@ jobs:
           cd dxvk-remix
           ninja -C build
 
-      - name: Upload Artifacts
+      - name: Upload Artifacts (x64)
         uses: actions/upload-artifact@v4
         with:
-          name: Raster-Remix-Binaries
+          name: Raster-Remix-x64
           path: |
             dxvk-remix/build/src/d3d9/d3d9.dll
             dxvk-remix/build/src/dxgi/dxgi.dll
+
+  build-win32:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y meson ninja-build gcc-mingw-w64 g++-mingw-w64 glslang-tools spirv-tools python3 python3-pip
+
+      - name: Apply Raster Remix Patch
+        run: |
+          cd dxvk-remix
+          git apply ../raster_remix_core_changes.patch
+          cp ../fake_xxd.py ./fake_xxd.py
+          chmod +x fake_xxd.py
+          cp -r ../untracked_files/* ./
+          chmod +x scripts-common/install_file_in_dir.sh
+
+      - name: Setup Build Environment (x86)
+        run: |
+          cd dxvk-remix
+          mkdir -p external/fonts/NVIDIASans external/fonts/RobotoMono
+          mkdir -p external/aftermath/include
+          mkdir -p external/omni_core_materials
+          mkdir -p external/nv_usd_Release/include/boost
+          mkdir -p external/nv_usd_Debug/include/boost
+          mkdir -p external/nvapi
+          mkdir -p external/reflex/inc
+          mkdir -p external/rtxio/include
+          mkdir -p external/slang
+          mkdir -p external/glslangvalidator
+          mkdir -p external/spirv_tools
+          touch external/fonts/NVIDIASans/NVIDIASansMd.ttf external/fonts/RobotoMono/RobotoMonoRg.ttf
+          meson setup --cross-file build-win32.txt --buildtype release build32
+
+      - name: Compile (x86)
+        run: |
+          cd dxvk-remix
+          ninja -C build32
+
+      - name: Upload Artifacts (x86)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Raster-Remix-x86
+          path: |
+            dxvk-remix/build32/src/d3d9/d3d9.dll
+            dxvk-remix/build32/src/dxgi/dxgi.dll

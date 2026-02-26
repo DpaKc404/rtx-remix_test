@@ -1,8 +1,8 @@
 diff --git a/meson.build b/meson.build
-index 37534ce6e..06e23256b 100644
+index 37534ce6e..d7bbf52d0 100644
 --- a/meson.build
 +++ b/meson.build
-@@ -42,17 +42,11 @@ current_build_dir_norm = meson.current_build_dir().replace('\\', '/')
+@@ -42,26 +42,21 @@ current_build_dir_norm = meson.current_build_dir().replace('\\', '/')
  #     script will be called twice on the same build. This will not be noticeable as packman
  #     early outs if everything's already fetched, so the waste is negligible + forgiveable.
  get_dependencies_script_path = join_paths(global_src_root_norm, 'scripts-common/update-deps.cmd')
@@ -23,7 +23,18 @@ index 37534ce6e..06e23256b 100644
  
  fs = import('fs')
  
-@@ -71,7 +65,14 @@ vs_project_defines += '_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR;'
+ cpu_family = target_machine.cpu_family()
+ build_os = build_machine.system()
+ 
+-assert(cpu_family != 'x86', 'dxvk-remix-nv can\'t be built in x86. Make sure you\'re running this from a regular Powershell window.')
++# [RASTER REMIX] x86 assert removed — we support 32-bit builds for legacy games
+ 
+ add_project_arguments('-DNOMINMAX', language : 'cpp')
++add_project_arguments('-DREMIX_ALLOW_X86', language : 'cpp')
+ vs_project_defines = 'NOMINMAX;'
+ 
+ add_project_arguments('-D_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR', language : 'cpp')
+@@ -71,7 +66,14 @@ vs_project_defines += '_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR;'
  dxvk_compiler = meson.get_compiler('cpp')
  dxvk_is_msvc = dxvk_compiler.get_id() == 'msvc'
  dxvk_is_ninja = meson.backend() == 'ninja'
@@ -39,7 +50,7 @@ index 37534ce6e..06e23256b 100644
  
  external_dll_paths = []
  
-@@ -86,28 +87,28 @@ if dxvk_is_msvc
+@@ -86,28 +88,28 @@ if dxvk_is_msvc
  endif
  
  if enable_rtxio == true
@@ -74,7 +85,7 @@ index 37534ce6e..06e23256b 100644
  vs_project_defines += 'BUILD_SOURCE_ROOT="' + global_src_root_norm + '/";'
  
  # c++17 was added in 15.3, older version needs c++latest
-@@ -118,12 +119,15 @@ if dxvk_is_msvc and dxvk_compiler.version().version_compare('<15.3')
+@@ -118,12 +120,15 @@ if dxvk_is_msvc and dxvk_compiler.version().version_compare('<15.3')
    else
      dxvk_cpp_std='c++latest'
    endif
@@ -91,7 +102,7 @@ index 37534ce6e..06e23256b 100644
  endif
  
  if dxvk_is_msvc
-@@ -164,7 +168,7 @@ if not dxvk_is_msvc
+@@ -164,7 +169,7 @@ if not dxvk_is_msvc
  endif
  
  remix_api_include_path = include_directories('./public/include')
@@ -100,7 +111,7 @@ index 37534ce6e..06e23256b 100644
  
  dxvk_include_dirs = [
    './include',
-@@ -247,9 +251,9 @@ if enable_rtxio == true
+@@ -247,9 +252,9 @@ if enable_rtxio == true
  endif
  
  # Shader Compile Tools
@@ -113,7 +124,7 @@ index 37534ce6e..06e23256b 100644
  python_interpreter = find_program('python3', 'python')
  shader_compile_script = join_paths(global_src_root_norm, 'scripts-common/compile_shaders.py')
  
-@@ -306,7 +310,6 @@ rtx_shaders_command_arguments = [
+@@ -306,7 +311,6 @@ rtx_shaders_command_arguments = [
    # this use case currently it works fine, and worst case this array can just be duplicated to have 2 sets of behavior if needed.
    # See this for more info: https://mesonbuild.com/Reference-manual_returned_external_program.html#external_programfull_path
    '-glslang', fs.as_posix(glsl_compiler.full_path()),
@@ -121,7 +132,7 @@ index 37534ce6e..06e23256b 100644
    '-spirvval', fs.as_posix(spirv_val.full_path()),
    '-input', rtx_shader_source_directory,
    '-include', shader_directory,
-@@ -334,11 +337,11 @@ rtx_shaders_runtime_command_arguments = rtx_shaders_command_arguments + [ '-bina
+@@ -334,11 +338,11 @@ rtx_shaders_runtime_command_arguments = rtx_shaders_command_arguments + [ '-bina
  
  rtx_shaders_runtime_command_argument_string = ' '.join(rtx_shaders_runtime_command_arguments)
  
@@ -136,7 +147,7 @@ index 37534ce6e..06e23256b 100644
  vs_project_defines += 'RUNTIME_SHADER_RECOMPILATION_SPIRV_BINARY_OUTPUT_PATH="' + rtx_shader_output_directory + '";'
  
  exe_ext = ''
-@@ -460,7 +463,7 @@ else
+@@ -460,7 +464,7 @@ else
  endif
  
  # embedding compiler
@@ -145,7 +156,7 @@ index 37534ce6e..06e23256b 100644
  embedding_compiler = generator(xxd_exe,
      output : '@PLAINNAME@.h',
      arguments : [ '@INPUT@', '@OUTPUT@', '@BASENAME@' ]
-@@ -525,19 +528,16 @@ nvusd_deplibs = [
+@@ -525,19 +529,16 @@ nvusd_deplibs = [
  ]
  
  usd_linklibs = []
@@ -167,7 +178,7 @@ index 37534ce6e..06e23256b 100644
  
  # this is repeated below, since we overwrite dlss_lib_path in src/dxvk/meson.build for some reason
  dlss_root_path = 'external/ngx_sdk_dldn'
-@@ -597,7 +597,7 @@ subdir('src')
+@@ -597,7 +598,7 @@ subdir('src')
  enable_tests = get_option('enable_tests')
  
  if enable_tests
@@ -176,7 +187,7 @@ index 37534ce6e..06e23256b 100644
  endif
  
  hdremix_outdir = join_paths(meson.current_source_dir(), 'nv-private', 'hdremix', 'bin', get_option('buildtype'))
-@@ -611,7 +611,7 @@ dxvkrt_output_targets = {
+@@ -611,7 +612,7 @@ dxvkrt_output_targets = {
    'unit_test': '',
  }
  
@@ -185,7 +196,7 @@ index 37534ce6e..06e23256b 100644
  
  if dxvk_is_ninja
    # this is how we force meson to reconfigure when external files change
-@@ -717,54 +717,44 @@ if dxvk_is_ninja
+@@ -717,54 +718,44 @@ if dxvk_is_ninja
  
      # using tagged install targets to get the files in the right place at install time (each project in VS knows which tag to use)
  
@@ -260,7 +271,7 @@ index 37534ce6e..06e23256b 100644
          src_exe, output_path,
          install_tag: target_suffix
        )
-@@ -772,7 +762,7 @@ if dxvk_is_ninja
+@@ -772,7 +763,7 @@ if dxvk_is_ninja
  
      if t != '_output'
        meson.add_install_script(
@@ -269,7 +280,7 @@ index 37534ce6e..06e23256b 100644
          join_paths(current_build_dir_norm, 'src/d3d9', 'd3d9.dll'), output_path,
          install_tag: target_suffix
        )
-@@ -781,7 +771,7 @@ if dxvk_is_ninja
+@@ -781,7 +772,7 @@ if dxvk_is_ninja
      if requires_pdb
  	  # ensure we copy everything to these special targets, the PDB is important!
        meson.add_install_script(
@@ -278,7 +289,7 @@ index 37534ce6e..06e23256b 100644
          join_paths(current_build_dir_norm, 'src/d3d9', 'd3d9.*'), output_path,
          install_tag: target_suffix
        )
-@@ -803,7 +793,7 @@ if dxvk_is_ninja
+@@ -803,7 +794,7 @@ if dxvk_is_ninja
      message(vsproj.stderr().strip())
    endif
    if vsproj.returncode() != 0
@@ -546,10 +557,21 @@ index 3205de0c9..39c7b0081 100644
      // Initialize spec constant for texture category
      uint32_t textureCategory = spvModule.specConst32(uint32Type, 0);
 diff --git a/src/d3d9/d3d9_main.cpp b/src/d3d9/d3d9_main.cpp
-index 252995455..a7f51629b 100644
+index 252995455..50456dd57 100644
 --- a/src/d3d9/d3d9_main.cpp
 +++ b/src/d3d9/d3d9_main.cpp
-@@ -160,7 +160,6 @@ extern "C" {
+@@ -135,7 +135,10 @@ constexpr bool strings_equal(char const * a, char const * b) {
+ extern "C" {
+   DLLEXPORT uint64_t __stdcall QueryFeatureVersion(version::Feature feat) {
+     static_assert(strings_equal(__func__, version::QueryFuncName));
++    // [RASTER REMIX] Skip type check on x86 — size_t != uint64_t on 32-bit
++#ifndef __i386__
+     static_assert(std::is_same_v< decltype(&QueryFeatureVersion), version::QueryFunc >);
++#endif
+     switch(feat){
+       case version::MessageChannel:
+       {
+@@ -160,7 +163,6 @@ extern "C" {
  }
  
  void dummy() {
@@ -2364,8 +2386,22 @@ index 55169cdc3..3fe928568 100644
      uint32_t present = VK_QUEUE_FAMILY_IGNORED;
      // NV-DXVK end
    };
+diff --git a/src/dxvk/dxvk_bind_mask.h b/src/dxvk/dxvk_bind_mask.h
+index b6c470bcc..9befde55b 100644
+--- a/src/dxvk/dxvk_bind_mask.h
++++ b/src/dxvk/dxvk_bind_mask.h
+@@ -153,7 +153,7 @@ namespace dxvk {
+     Rc<DxvkBufferView> bufferView;
+     DxvkBufferSlice    bufferSlice;
+     Rc<DxvkAccelStructure> accelStructure;
+-    VkAccelerationStructureKHR tlas = nullptr;
++    VkAccelerationStructureKHR tlas = VK_NULL_HANDLE;
+   };
+   
+ }
+\ No newline at end of file
 diff --git a/src/dxvk/dxvk_cmdlist.cpp b/src/dxvk/dxvk_cmdlist.cpp
-index 203b9cb93..fc753906a 100644
+index 203b9cb93..8d2363db8 100644
 --- a/src/dxvk/dxvk_cmdlist.cpp
 +++ b/src/dxvk/dxvk_cmdlist.cpp
 @@ -79,7 +79,7 @@ namespace dxvk {
@@ -2386,6 +2422,24 @@ index 203b9cb93..fc753906a 100644
      if (m_additionalWaitSemaphore) {
        assert(info.waitCount < (sizeof(info.waitSync) / sizeof(info.waitSync[0])));
        info.waitSync[info.waitCount] = m_additionalWaitSemaphore;
+@@ -148,7 +148,7 @@ namespace dxvk {
+       info.waitValue[info.waitCount] = m_additionalWaitSemaphoreValue;
+       info.waitCount += 1;
+ 
+-      m_additionalWaitSemaphore = nullptr;
++      m_additionalWaitSemaphore = VK_NULL_HANDLE;
+       m_additionalWaitSemaphoreValue = uint64_t(-1);
+     }
+     if (m_additionalSignalSemaphore) {
+@@ -157,7 +157,7 @@ namespace dxvk {
+       info.wakeValue[info.wakeCount] = m_additionalSignalSemaphoreValue;
+       info.wakeCount += 1;
+ 
+-      m_additionalSignalSemaphore = nullptr;
++      m_additionalSignalSemaphore = VK_NULL_HANDLE;
+       m_additionalSignalSemaphoreValue = uint64_t(-1);
+     }
+     // NV-DXVK end
 @@ -241,7 +241,7 @@ namespace dxvk {
            VkFence               fence,
      const DxvkQueueSubmission&  info) {
@@ -2405,7 +2459,7 @@ index 203b9cb93..fc753906a 100644
      // NV-DXVK end
      submitInfo.waitSemaphoreCount   = info.waitCount;
 diff --git a/src/dxvk/dxvk_cmdlist.h b/src/dxvk/dxvk_cmdlist.h
-index a1ce56117..672500bd2 100644
+index a1ce56117..575fed2c0 100644
 --- a/src/dxvk/dxvk_cmdlist.h
 +++ b/src/dxvk/dxvk_cmdlist.h
 @@ -67,7 +67,7 @@ namespace dxvk {
@@ -2439,15 +2493,20 @@ index a1ce56117..672500bd2 100644
      );
      
      /**
-@@ -944,7 +944,7 @@ namespace dxvk {
+@@ -944,10 +944,10 @@ namespace dxvk {
              VkFence               fence,
        const DxvkQueueSubmission&  info);
  
 -    // NV-DXVK start: DLFG integration
+-    VkSemaphore m_additionalWaitSemaphore = nullptr;
 +// [STUBBED BY GEMINI]     // NV-DXVK start: DLFG integration
-     VkSemaphore m_additionalWaitSemaphore = nullptr;
++    VkSemaphore m_additionalWaitSemaphore = VK_NULL_HANDLE;
      uint64_t m_additionalWaitSemaphoreValue = uint64_t(-1);
-     VkSemaphore m_additionalSignalSemaphore = nullptr;
+-    VkSemaphore m_additionalSignalSemaphore = nullptr;
++    VkSemaphore m_additionalSignalSemaphore = VK_NULL_HANDLE;
+     uint64_t m_additionalSignalSemaphoreValue = uint64_t(-1);
+     // NV-DXVK end
+   };
 diff --git a/src/dxvk/dxvk_compute.cpp b/src/dxvk/dxvk_compute.cpp
 index adb67e1e1..9d95b9b27 100644
 --- a/src/dxvk/dxvk_compute.cpp
@@ -3215,7 +3274,7 @@ index de13d1cac..05dd16024 100644
      DxvkExt khrExternalSemaphoreCapabilities = { VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME, DxvkExtMode::Optional };
      // NV-DXVK end
 diff --git a/src/dxvk/dxvk_instance.cpp b/src/dxvk/dxvk_instance.cpp
-index 0c13d02f3..da4ba98af 100644
+index 0c13d02f3..0a975fc79 100644
 --- a/src/dxvk/dxvk_instance.cpp
 +++ b/src/dxvk/dxvk_instance.cpp
 @@ -25,13 +25,11 @@
@@ -3401,6 +3460,15 @@ index 0c13d02f3..da4ba98af 100644
        // NV-DXVK start: use EXT_debug_utils
        VkDebugUtilsMessengerCreateInfoEXT info = {};
        info.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
+@@ -339,7 +252,7 @@ namespace dxvk {
+   
+   DxvkInstance::~DxvkInstance() {
+     // NV-DXVK start: use EXT_debug_utils
+-    if (m_debugUtilsMessenger != nullptr) {
++    if (m_debugUtilsMessenger != VK_NULL_HANDLE) {
+       m_vki->vkDestroyDebugUtilsMessengerEXT(m_vki->instance(), m_debugUtilsMessenger, NULL);
+     }
+     // NV-DXVK end
 @@ -378,8 +291,9 @@ namespace dxvk {
    }
  
@@ -3533,6 +3601,19 @@ index 0c13d02f3..da4ba98af 100644
    }
    // NV-DXVK end 
    
+diff --git a/src/dxvk/dxvk_instance.h b/src/dxvk/dxvk_instance.h
+index e65e2eb20..f97f8305e 100644
+--- a/src/dxvk/dxvk_instance.h
++++ b/src/dxvk/dxvk_instance.h
+@@ -138,7 +138,7 @@ namespace dxvk {
+     Rc<vk::InstanceFn>      m_vki;
+     DxvkInstanceExtensions  m_extensions;
+     // NV-DXVK start: use EXT_debug_utils
+-    VkDebugUtilsMessengerEXT m_debugUtilsMessenger = nullptr;
++    VkDebugUtilsMessengerEXT m_debugUtilsMessenger = VK_NULL_HANDLE;
+     // NV-DXVK end
+ 
+     std::vector<DxvkExtensionProvider*> m_extProviders;
 diff --git a/src/dxvk/dxvk_memory.cpp b/src/dxvk/dxvk_memory.cpp
 index c45b53f75..ef96a50e7 100644
 --- a/src/dxvk/dxvk_memory.cpp
@@ -5333,10 +5414,10 @@ index 8e88008bf..000000000
 -}
 \ No newline at end of file
 diff --git a/src/dxvk/dxvk_scoped_annotation.cpp b/src/dxvk/dxvk_scoped_annotation.cpp
-index c609e96cc..f87faf0ef 100644
+index c609e96cc..647107add 100644
 --- a/src/dxvk/dxvk_scoped_annotation.cpp
 +++ b/src/dxvk/dxvk_scoped_annotation.cpp
-@@ -19,7 +19,6 @@
+@@ -19,12 +19,26 @@
  * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
  * DEALINGS IN THE SOFTWARE.
  */
@@ -5344,6 +5425,26 @@ index c609e96cc..f87faf0ef 100644
  
  #include "dxvk_scoped_annotation.h"
  #include "dxvk_context.h"
+ #include "dxvk_device.h"
++// [RASTER REMIX] Workaround: intrin.h on i686-mingw has conflicting 3DNow! declarations
++#ifdef __i386__
++#define _m_pf2iw  _m_pf2iw_disabled
++#define _m_pfnacc _m_pfnacc_disabled
++#define _m_pfpnacc _m_pfpnacc_disabled
++#define _m_pi2fw  _m_pi2fw_disabled
++#define _m_pswapd _m_pswapd_disabled
++#endif
+ #include "client/TracyProfiler.hpp"
++#ifdef __i386__
++#undef _m_pf2iw
++#undef _m_pfnacc
++#undef _m_pfpnacc
++#undef _m_pi2fw
++#undef _m_pswapd
++#endif
+ 
+ // Global overload
+ TRACY_OBJECT_MEMORY_PROFILING
 diff --git a/src/dxvk/dxvk_state_cache.cpp b/src/dxvk/dxvk_state_cache.cpp
 index 6b19874dc..341e4e57e 100644
 --- a/src/dxvk/dxvk_state_cache.cpp
