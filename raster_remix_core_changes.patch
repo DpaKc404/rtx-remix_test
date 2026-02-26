@@ -1,5 +1,5 @@
 diff --git a/meson.build b/meson.build
-index 37534ce6e..f1443bd15 100644
+index 37534ce6e..06e23256b 100644
 --- a/meson.build
 +++ b/meson.build
 @@ -42,17 +42,11 @@ current_build_dir_norm = meson.current_build_dir().replace('\\', '/')
@@ -23,16 +23,84 @@ index 37534ce6e..f1443bd15 100644
  
  fs = import('fs')
  
-@@ -71,7 +65,7 @@ vs_project_defines += '_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR;'
+@@ -71,7 +65,14 @@ vs_project_defines += '_DISABLE_CONSTEXPR_MUTEX_CONSTRUCTOR;'
  dxvk_compiler = meson.get_compiler('cpp')
  dxvk_is_msvc = dxvk_compiler.get_id() == 'msvc'
  dxvk_is_ninja = meson.backend() == 'ninja'
 -enable_rtxio = get_option('enable_rtxio')
 +enable_rtxio = false
++
++# Define prefix: /D for MSVC, -D for GCC/MinGW
++if dxvk_is_msvc
++  _d = '/D'
++else
++  _d = '-D'
++endif
  
  external_dll_paths = []
  
-@@ -247,9 +241,9 @@ if enable_rtxio == true
+@@ -86,28 +87,28 @@ if dxvk_is_msvc
+ endif
+ 
+ if enable_rtxio == true
+-  add_global_arguments('/DWITH_RTXIO', language : 'cpp')
++  add_global_arguments(_d + 'WITH_RTXIO', language : 'cpp')
+   vs_project_defines += 'WITH_RTXIO;'
+ endif
+ 
+ if get_option('buildtype') == 'release'
+-  add_project_arguments('/DNDEBUG', language : 'cpp')
++  add_project_arguments(_d + 'NDEBUG', language : 'cpp')
+   # note: this define depends on the build type, so it's not included in vs_project_defines
+ elif get_option('buildtype') == 'debugoptimized'
+-  add_project_arguments('/DDEBUG_OPTIMIZED', language : 'cpp')
++  add_project_arguments(_d + 'DEBUG_OPTIMIZED', language : 'cpp')
+   # note: this define depends on the build type, so it's not included in vs_project_defines
+ endif
+ 
+ if dxvk_is_ninja
+   # workarounds for our strange symbol name differences when embedding MDL
+-  add_global_arguments('/DBUILD_NINJA=1', language : 'cpp')
++  add_global_arguments(_d + 'BUILD_NINJA=1', language : 'cpp')
+   vs_project_defines += 'BUILD_NINJA=1;'
+ else
+-  add_global_arguments('/DBUILD_NINJA=0', language : 'cpp')
++  add_global_arguments(_d + 'BUILD_NINJA=0', language : 'cpp')
+   vs_project_defines += 'BUILD_NINJA=0;'
+ endif
+ 
+-add_global_arguments('/DBUILD_SOURCE_ROOT="' + global_src_root_norm + '/"', language : 'cpp')
++add_global_arguments(_d + 'BUILD_SOURCE_ROOT="' + global_src_root_norm + '/"', language : 'cpp')
+ vs_project_defines += 'BUILD_SOURCE_ROOT="' + global_src_root_norm + '/";'
+ 
+ # c++17 was added in 15.3, older version needs c++latest
+@@ -118,12 +119,15 @@ if dxvk_is_msvc and dxvk_compiler.version().version_compare('<15.3')
+   else
+     dxvk_cpp_std='c++latest'
+   endif
+-else
++elif dxvk_is_msvc
+   if dxvk_is_ninja
+     dxvk_cpp_std='vc++17'
+   else
+     dxvk_cpp_std='c++17'
+   endif
++else
++  # GCC/MinGW -- always use c++17
++  dxvk_cpp_std='c++17'
+ endif
+ 
+ if dxvk_is_msvc
+@@ -164,7 +168,7 @@ if not dxvk_is_msvc
+ endif
+ 
+ remix_api_include_path = include_directories('./public/include')
+-add_global_arguments('/DREMIX_LIBRARY_EXPORTS=1', language : 'cpp')
++add_global_arguments(_d + 'REMIX_LIBRARY_EXPORTS=1', language : 'cpp')
+ 
+ dxvk_include_dirs = [
+   './include',
+@@ -247,9 +251,9 @@ if enable_rtxio == true
  endif
  
  # Shader Compile Tools
@@ -45,7 +113,7 @@ index 37534ce6e..f1443bd15 100644
  python_interpreter = find_program('python3', 'python')
  shader_compile_script = join_paths(global_src_root_norm, 'scripts-common/compile_shaders.py')
  
-@@ -306,7 +300,6 @@ rtx_shaders_command_arguments = [
+@@ -306,7 +310,6 @@ rtx_shaders_command_arguments = [
    # this use case currently it works fine, and worst case this array can just be duplicated to have 2 sets of behavior if needed.
    # See this for more info: https://mesonbuild.com/Reference-manual_returned_external_program.html#external_programfull_path
    '-glslang', fs.as_posix(glsl_compiler.full_path()),
@@ -53,7 +121,22 @@ index 37534ce6e..f1443bd15 100644
    '-spirvval', fs.as_posix(spirv_val.full_path()),
    '-input', rtx_shader_source_directory,
    '-include', shader_directory,
-@@ -460,7 +453,7 @@ else
+@@ -334,11 +337,11 @@ rtx_shaders_runtime_command_arguments = rtx_shaders_command_arguments + [ '-bina
+ 
+ rtx_shaders_runtime_command_argument_string = ' '.join(rtx_shaders_runtime_command_arguments)
+ 
+-add_global_arguments('/DRUNTIME_SHADER_RECOMPILATION_PYTHON_ARGUMENTS="' + rtx_shaders_runtime_command_argument_string + '"', language : 'cpp')
++add_global_arguments(_d + 'RUNTIME_SHADER_RECOMPILATION_PYTHON_ARGUMENTS="' + rtx_shaders_runtime_command_argument_string + '"', language : 'cpp')
+ vs_project_defines += 'RUNTIME_SHADER_RECOMPILATION_PYTHON_ARGUMENTS="' + rtx_shaders_runtime_command_argument_string + '";'
+-add_global_arguments('/DRUNTIME_SHADER_RECOMPILATION_SHADER_SOURCE_PATH="' + rtx_shader_source_directory + '"', language : 'cpp')
++add_global_arguments(_d + 'RUNTIME_SHADER_RECOMPILATION_SHADER_SOURCE_PATH="' + rtx_shader_source_directory + '"', language : 'cpp')
+ vs_project_defines += 'RUNTIME_SHADER_RECOMPILATION_SHADER_SOURCE_PATH="' + rtx_shader_source_directory + '";'
+-add_global_arguments('/DRUNTIME_SHADER_RECOMPILATION_SPIRV_BINARY_OUTPUT_PATH="' + rtx_shader_output_directory + '"', language : 'cpp')
++add_global_arguments(_d + 'RUNTIME_SHADER_RECOMPILATION_SPIRV_BINARY_OUTPUT_PATH="' + rtx_shader_output_directory + '"', language : 'cpp')
+ vs_project_defines += 'RUNTIME_SHADER_RECOMPILATION_SPIRV_BINARY_OUTPUT_PATH="' + rtx_shader_output_directory + '";'
+ 
+ exe_ext = ''
+@@ -460,7 +463,7 @@ else
  endif
  
  # embedding compiler
@@ -62,7 +145,7 @@ index 37534ce6e..f1443bd15 100644
  embedding_compiler = generator(xxd_exe,
      output : '@PLAINNAME@.h',
      arguments : [ '@INPUT@', '@OUTPUT@', '@BASENAME@' ]
-@@ -525,19 +518,16 @@ nvusd_deplibs = [
+@@ -525,19 +528,16 @@ nvusd_deplibs = [
  ]
  
  usd_linklibs = []
@@ -84,7 +167,7 @@ index 37534ce6e..f1443bd15 100644
  
  # this is repeated below, since we overwrite dlss_lib_path in src/dxvk/meson.build for some reason
  dlss_root_path = 'external/ngx_sdk_dldn'
-@@ -597,7 +587,7 @@ subdir('src')
+@@ -597,7 +597,7 @@ subdir('src')
  enable_tests = get_option('enable_tests')
  
  if enable_tests
@@ -93,7 +176,7 @@ index 37534ce6e..f1443bd15 100644
  endif
  
  hdremix_outdir = join_paths(meson.current_source_dir(), 'nv-private', 'hdremix', 'bin', get_option('buildtype'))
-@@ -611,7 +601,7 @@ dxvkrt_output_targets = {
+@@ -611,7 +611,7 @@ dxvkrt_output_targets = {
    'unit_test': '',
  }
  
@@ -102,7 +185,7 @@ index 37534ce6e..f1443bd15 100644
  
  if dxvk_is_ninja
    # this is how we force meson to reconfigure when external files change
-@@ -717,21 +707,11 @@ if dxvk_is_ninja
+@@ -717,54 +717,44 @@ if dxvk_is_ninja
  
      # using tagged install targets to get the files in the right place at install time (each project in VS knows which tag to use)
  
@@ -116,17 +199,94 @@ index 37534ce6e..f1443bd15 100644
 +        
 +    #     install_data(join_paths(global_src_root_norm, 'src', 'usd-plugins', 'plugInfo.json'), install_dir : join_paths(output_path, 'usd', 'plugins'), install_tag: target_suffix) 
  
-     # install USD plugins
+-    # install USD plugins
 -    meson.add_install_script(
 -      join_paths(global_src_root_norm, 'scripts-common/install_usd_plugins.bat'),
 -      output_path,
 -      install_tag: target_suffix 
 -    )
 -
+-    install_data(join_paths(nrc_dll_path, nrc_dll_name), install_dir : output_path, install_tag: target_suffix) 
+-    install_data(join_paths(nrc_dll_path, 'cudart64_12.dll'), install_dir : output_path, install_tag: target_suffix) 
+-    install_data(join_paths(nrc_dll_path, 'nvrtc64_120_0.dll'), install_dir : output_path, install_tag: target_suffix) 
+-    install_data(join_paths(nrc_dll_path, 'nvrtc-builtins64_125.dll'), install_dir : output_path, install_tag: target_suffix) 
++    # install USD plugins (disabled for raster remix - no RT dependencies)
 +    
-     install_data(join_paths(nrc_dll_path, nrc_dll_name), install_dir : output_path, install_tag: target_suffix) 
-     install_data(join_paths(nrc_dll_path, 'cudart64_12.dll'), install_dir : output_path, install_tag: target_suffix) 
-     install_data(join_paths(nrc_dll_path, 'nvrtc64_120_0.dll'), install_dir : output_path, install_tag: target_suffix) 
++    # install_data(join_paths(nrc_dll_path, nrc_dll_name), install_dir : output_path, install_tag: target_suffix) 
++    # install_data(join_paths(nrc_dll_path, 'cudart64_12.dll'), install_dir : output_path, install_tag: target_suffix) 
++    # install_data(join_paths(nrc_dll_path, 'nvrtc64_120_0.dll'), install_dir : output_path, install_tag: target_suffix) 
++    # install_data(join_paths(nrc_dll_path, 'nvrtc-builtins64_125.dll'), install_dir : output_path, install_tag: target_suffix) 
+ 
+-    install_data(join_paths(nrd_lib_path, 'NRD.dll'), install_dir : output_path, install_tag: target_suffix) 
++    # install_data(join_paths(nrd_lib_path, 'NRD.dll'), install_dir : output_path, install_tag: target_suffix) 
+     
+-    install_data(join_paths(xess_dll_path, 'libxess.dll'), install_dir : output_path, install_tag: target_suffix)
++    # install_data(join_paths(xess_dll_path, 'libxess.dll'), install_dir : output_path, install_tag: target_suffix)
+ 
+-    install_data(join_paths(dlss_lib_path, 'nvngx_dlss.dll'), install_dir : output_path, install_tag: target_suffix) 
+-    install_data(join_paths(dlss_lib_path, 'nvngx_dlssd.dll'), install_dir : output_path, install_tag: target_suffix) 
++    # install_data(join_paths(dlss_lib_path, 'nvngx_dlss.dll'), install_dir : output_path, install_tag: target_suffix) 
++    # install_data(join_paths(dlss_lib_path, 'nvngx_dlssd.dll'), install_dir : output_path, install_tag: target_suffix) 
+ 
+-    install_data(join_paths(dlfg_lib_path, 'nvngx_dlssg.dll'), install_dir : output_path, install_tag: target_suffix) 
++    # install_data(join_paths(dlfg_lib_path, 'nvngx_dlssg.dll'), install_dir : output_path, install_tag: target_suffix) 
+ 
+-    install_data(join_paths(reflex_lib_path, 'NvLowLatencyVk.dll'), install_dir : output_path, install_tag: target_suffix) 
++    # install_data(join_paths(reflex_lib_path, 'NvLowLatencyVk.dll'), install_dir : output_path, install_tag: target_suffix) 
+ 
+-    install_data(join_paths(aftermath_lib_path, 'GFSDK_Aftermath_Lib.x64.dll'), install_dir : output_path, install_tag: target_suffix) 
++    # install_data(join_paths(aftermath_lib_path, 'GFSDK_Aftermath_Lib.x64.dll'), install_dir : output_path, install_tag: target_suffix) 
+ 
+-    if enable_rtxio == true
+-      install_data(join_paths(rtxio_bin_path, 'rtxio.dll'), install_dir : output_path, install_tag: target_suffix) 
+-    endif
++    # if enable_rtxio == true
++    #   install_data(join_paths(rtxio_bin_path, 'rtxio.dll'), install_dir : output_path, install_tag: target_suffix) 
++    # endif
+ 
+     if src_exe != ''
+       # intentionally using two install jobs here so we can have unique tags
+       # the exe only allows test applications to be compiled and installed, without installing the runtime.  Such copy-less runtime testing scenarios exist in CI.
+       meson.add_install_script(
+-        join_paths(global_src_root_norm, 'scripts-common/install_file_in_dir.bat'),
++        join_paths(global_src_root_norm, 'scripts-common/install_file_in_dir.sh'),
+         src_exe, output_path,
+         install_tag: target_suffix + '_exeonly'
+       )
+       # the regular path allows the exe to be built and deployed along with a runtime.  Such scenarios exist during local development, when launching from VS for example.
+       meson.add_install_script(
+-        join_paths(global_src_root_norm, 'scripts-common/install_file_in_dir.bat'),
++        join_paths(global_src_root_norm, 'scripts-common/install_file_in_dir.sh'),
+         src_exe, output_path,
+         install_tag: target_suffix
+       )
+@@ -772,7 +762,7 @@ if dxvk_is_ninja
+ 
+     if t != '_output'
+       meson.add_install_script(
+-        join_paths(global_src_root_norm, 'scripts-common/install_file_in_dir.bat'),
++        join_paths(global_src_root_norm, 'scripts-common/install_file_in_dir.sh'),
+         join_paths(current_build_dir_norm, 'src/d3d9', 'd3d9.dll'), output_path,
+         install_tag: target_suffix
+       )
+@@ -781,7 +771,7 @@ if dxvk_is_ninja
+     if requires_pdb
+ 	  # ensure we copy everything to these special targets, the PDB is important!
+       meson.add_install_script(
+-        join_paths(global_src_root_norm, 'scripts-common/install_file_in_dir.bat'),
++        join_paths(global_src_root_norm, 'scripts-common/install_file_in_dir.sh'),
+         join_paths(current_build_dir_norm, 'src/d3d9', 'd3d9.*'), output_path,
+         install_tag: target_suffix
+       )
+@@ -803,7 +793,7 @@ if dxvk_is_ninja
+     message(vsproj.stderr().strip())
+   endif
+   if vsproj.returncode() != 0
+-    error('generate_vs_project_files failed')
++    message('generate_vs_project_files failed (non-fatal on Linux cross-compile)')
+   endif
+ endif # dxvk_is_ninja
+ 
 diff --git a/src/d3d9/d3d9_common_texture.cpp b/src/d3d9/d3d9_common_texture.cpp
 index b94c3d0a6..3932b36aa 100644
 --- a/src/d3d9/d3d9_common_texture.cpp
@@ -4992,13 +5152,13 @@ index 3d8947439..64ce7f8aa 100644
          ImGui::Text(message.c_str());
        }
 diff --git a/src/dxvk/meson.build b/src/dxvk/meson.build
-index e229597c3..756b37024 100644
+index e229597c3..f4ad63a81 100644
 --- a/src/dxvk/meson.build
 +++ b/src/dxvk/meson.build
 @@ -1,4 +1,6 @@
  dxvk_shaders = files([
-+  'shaders/pbr/pbr.vert',
-+  'shaders/pbr/pbr.frag',
++  'shaders/pbr/pbr_vert.vert',
++  'shaders/pbr/pbr_frag.frag',
    'shaders/dxvk_blit_frag_1d.frag',
    'shaders/dxvk_blit_frag_2d.frag',
    'shaders/dxvk_blit_frag_3d.frag',
@@ -89349,6 +89509,172 @@ index 1276914e7..000000000
 -        "*/resources/"
 -    ]
 -}
+diff --git a/src/util/sha1/sha1.c b/src/util/sha1/sha1.c
+index 39e60675e..2703ed894 100644
+--- a/src/util/sha1/sha1.c
++++ b/src/util/sha1/sha1.c
+@@ -18,6 +18,11 @@
+ #include <string.h>
+ #include "sha1.h"
+ 
++/* GCC 13+ generates false positive -Wstringop-overread for SHA1Transform */
++#if defined(__GNUC__) && !defined(__clang__)
++#pragma GCC diagnostic ignored "-Wstringop-overread"
++#endif
++
+ #define rol(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
+ 
+ /*
+diff --git a/src/util/util_bit.h b/src/util/util_bit.h
+index 3c65c70df..7682ace86 100644
+--- a/src/util/util_bit.h
++++ b/src/util/util_bit.h
+@@ -297,9 +297,13 @@ namespace dxvk::bit {
+ 
+   public:
+ 
+-    class iterator: public std::iterator<std::input_iterator_tag,
+-      uint32_t, uint32_t, const uint32_t*, uint32_t> {
++    class iterator {
+     public:
++      using iterator_category = std::input_iterator_tag;
++      using value_type = uint32_t;
++      using difference_type = uint32_t;
++      using pointer = const uint32_t*;
++      using reference = uint32_t;
+ 
+       explicit iterator(uint32_t flags)
+         : m_mask(flags) { }
+diff --git a/src/util/util_enum.h b/src/util/util_enum.h
+index 9bc592bae..388e88e7d 100644
+--- a/src/util/util_enum.h
++++ b/src/util/util_enum.h
+@@ -23,4 +23,4 @@
+     bool operator!=(const T _val) { return !(val == _val); } \
+   private: \
+     __##name val; \
+-  };
+\ No newline at end of file
++  };
+diff --git a/src/util/util_env.h b/src/util/util_env.h
+index 0672f154d..1cafc4bad 100644
+--- a/src/util/util_env.h
++++ b/src/util/util_env.h
+@@ -21,6 +21,7 @@
+ */
+ #pragma once
+ 
++#include <cstdint>
+ #include "util_string.h"
+ 
+ namespace dxvk::env {
+diff --git a/src/util/util_fastops.cpp b/src/util/util_fastops.cpp
+index 74cc527e4..79f2bafa9 100644
+--- a/src/util/util_fastops.cpp
++++ b/src/util/util_fastops.cpp
+@@ -22,10 +22,21 @@
+ #include <smmintrin.h>
+ #include <math.h>
+ #include <intrin.h>
++#include <cstring>
+ #include "util_math.h"
+ #include "util_fastops.h"
+ #include <algorithm>
++#ifdef _MSC_VER
+ #include <ppl.h>
++#endif
++
++#ifndef _MSC_VER
++// Enable AVX2/AVX512/BMI2 intrinsics for runtime-dispatched SIMD code.
++// The actual dispatch is guarded by CPUID checks at runtime.
++#pragma GCC target("avx2,avx512f,avx512bw,bmi,bmi2")
++#pragma GCC diagnostic ignored "-Wpsabi"
++#pragma GCC diagnostic ignored "-Wunused-variable"
++#endif
+ #include "util_fastops.h"
+ 
+ #define SSE_ENABLE ((fast::g_simdSupportLevel != fast::SIMD::None) && 1)
+@@ -939,10 +950,18 @@ namespace fast {
+ 
+     // It's only worth the effort if theres at least 3 threads saturated
+     if (numChunks > 3) {
++#ifdef _MSC_VER
+       concurrency::parallel_for<size_t>(0, numChunks, [&](size_t i) {
+         size_t offset = i * chunkSize;
+         std::memcpy(dstBytes + offset, srcBytes + offset, chunkSize);
+       });
++#else
++      // Fallback: sequential copy in chunks (no PPL on non-MSVC)
++      for (size_t i = 0; i < numChunks; ++i) {
++        size_t offset = i * chunkSize;
++        std::memcpy(dstBytes + offset, srcBytes + offset, chunkSize);
++      }
++#endif
+ 
+       // Copy any remaining bytes
+       std::memcpy(dstBytes + numChunks * chunkSize, srcBytes + numChunks * chunkSize, count % chunkSize);
+diff --git a/src/util/util_flags.h b/src/util/util_flags.h
+index ccc49c53a..3f2e534d4 100644
+--- a/src/util/util_flags.h
++++ b/src/util/util_flags.h
+@@ -171,4 +171,4 @@ namespace dxvk {
+     } \
+   private: \
+     std::atomic<T> val = 0x0; \
+-  };
+\ No newline at end of file
++  };
+diff --git a/src/util/util_keybind.h b/src/util/util_keybind.h
+index d1b40656e..65f479f4b 100644
+--- a/src/util/util_keybind.h
++++ b/src/util/util_keybind.h
+@@ -343,7 +343,7 @@ private:
+     } 
+ };
+ 
+-static std::string buildKeyBindDescriptorString(const VirtualKeys& virtKeys) {
++[[maybe_unused]] static std::string buildKeyBindDescriptorString(const VirtualKeys& virtKeys) {
+     std::stringstream ss;
+     bool bIsFirst = true;
+     for(const auto& virtKey : virtKeys) {
+diff --git a/src/util/util_messagechannel.cpp b/src/util/util_messagechannel.cpp
+index c19bb0634..bcf88612e 100644
+--- a/src/util/util_messagechannel.cpp
++++ b/src/util/util_messagechannel.cpp
+@@ -111,7 +111,7 @@ uint32_t MessageChannelBase::getMessageId(const char* msgName) {
+ 
+     if (it != m_msgs.end()) {
+       msg = it->second;
+-    } else if (msg = ::RegisterWindowMessageA(msgName)) {
++    } else if ((msg = ::RegisterWindowMessageA(msgName))) {
+       m_msgs[msgName] = msg;
+     }
+   }
+diff --git a/src/util/util_string.cpp b/src/util/util_string.cpp
+index af1c7a975..d645c6e8b 100644
+--- a/src/util/util_string.cpp
++++ b/src/util/util_string.cpp
+@@ -20,6 +20,7 @@
+ * DEALINGS IN THE SOFTWARE.
+ */
+ #include "util_string.h"
++#include <algorithm>
+ #include <iomanip>
+ 
+ namespace dxvk::str {
+diff --git a/src/util/util_window.cpp b/src/util/util_window.cpp
+index 0d917da40..13c4cf851 100644
+--- a/src/util/util_window.cpp
++++ b/src/util/util_window.cpp
+@@ -139,7 +139,7 @@ namespace dxvk::window {
+ 
+       // Retrieve the system image list.  In this order!
+       const int iconIDs[] = { SHIL_EXTRALARGE, SHIL_LARGE, SHIL_SMALL, SHIL_SYSSMALL };
+-      for (int i = 0; i < sizeof(iconIDs) / sizeof(iconIDs[0]); i++) {
++      for (size_t i = 0; i < sizeof(iconIDs) / sizeof(iconIDs[0]); i++) {
+         HIMAGELIST* imageList;
+         HRESULT hResult = SHGetImageList(iconIDs[i], IID_IImageList, (void**)&imageList);
+         if (hResult == S_OK) {
 diff --git a/tests/d3d11/meson.build b/tests/d3d11/meson.build
 deleted file mode 100644
 index 96fa90a3d..000000000
